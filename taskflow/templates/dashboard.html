@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
+
+{% block title %}
+    Dashboard | TaskFlow
+{% endblock %}
+
+{% block content %}
+
+<div class="app-layout">
+
+    <aside class="sidebar">
+
+        <a href="{% url 'dashboard' %}" class="sidebar-brand">
+            <span class="brand-mark sidebar-logo">T</span>
+            <span>TaskFlow</span>
+        </a>
+
+        <nav class="sidebar-nav">
+
+            <a href="{% url 'dashboard' %}" class="nav-item active">
+                <span class="nav-icon">⌂</span>
+                Dashboard
+            </a>
+
+            <a href="#" class="nav-item">
+                <span class="nav-icon">▣</span>
+                My Projects
+            </a>
+
+            <a href="#" class="nav-item">
+                <span class="nav-icon">✓</span>
+                My Tasks
+            </a>
+
+            <a href="#" class="nav-item">
+                <span class="nav-icon">◌</span>
+                Notifications
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <div class="user-mini-profile">
+                <div class="user-avatar">
+                    {{ request.user.username|first|upper }}
+                </div>
+
+                <div class="user-mini-info">
+                    <strong>{{ request.user.username }}</strong>
+                    <span>{{ request.user.email }}</span>
+                </div>
+            </div>
+
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+
+                <button type="submit" class="logout-button">
+                    <span>↪</span>
+                    Log out
+                </button>
+            </form>
+
+        </div>
+
+    </aside>
+
+    <main class="dashboard-main">
+
+        <header class="dashboard-header">
+            <div>
+                <p class="eyebrow">YOUR WORKSPACE</p>
+
+                <h1>
+                    Hi, {{ request.user.username }} 👋
+                </h1>
+
+                <p class="dashboard-subtitle">
+                    Here is a quick look at what needs your attention.
+                </p>
+            </div>
+
+            <a href="#" class="primary-button create-task-button">
+                <span>+</span>
+                Create task
+            </a>
+        </header>
+
+        <section class="stats-grid">
+
+            <article class="stat-card">
+                <div class="stat-icon todo-icon">○</div>
+
+                <div>
+                    <p>To Do</p>
+                    <strong>{{ todo_count }}</strong>
+                </div>
+            </article>
+
+            <article class="stat-card">
+                <div class="stat-icon doing-icon">◐</div>
+
+                <div>
+                    <p>In Progress</p>
+                    <strong>{{ doing_count }}</strong>
+                </div>
+            </article>
+
+            <article class="stat-card">
+                <div class="stat-icon done-icon">✓</div>
+
+                <div>
+                    <p>Completed</p>
+                    <strong>{{ done_count }}</strong>
+                </div>
+            </article>
+
+            <article class="stat-card overdue-card">
+                <div class="stat-icon overdue-icon">!</div>
+
+                <div>
+                    <p>Overdue</p>
+                    <strong>{{ overdue_count }}</strong>
+                </div>
+            </article>
+
+        </section>
+
+        <section class="dashboard-content-grid">
+
+            <article class="dashboard-panel">
+
+                <div class="panel-header">
+                    <div>
+                        <h2>Recent tasks</h2>
+                        <p>Your latest personal and assigned tasks.</p>
+                    </div>
+
+                    <a href="#" class="text-link">
+                        View all
+                    </a>
+                </div>
+
+                <div class="task-list">
+
+                    {% for task in recent_tasks %}
+                        <div class="task-row">
+
+                            <span class="status-dot status-{{ task.status|lower }}"></span>
+
+                            <div class="task-row-content">
+                                <strong>{{ task.title }}</strong>
+
+                                <span>
+                                    {% if task.project %}
+                                        {{ task.project.title }}
+                                    {% else %}
+                                        Personal task
+                                    {% endif %}
+                                </span>
+                            </div>
+
+                            {% if task.deadline %}
+                                <span class="task-deadline">
+                                    Due {{ task.deadline|date:"M d" }}
+                                </span>
+                            {% else %}
+                                <span class="task-deadline no-deadline">
+                                    No deadline
+                                </span>
+                            {% endif %}
+
+                        </div>
+
+                    {% empty %}
+                        <div class="empty-state">
+                            <div class="empty-icon">✓</div>
+
+                            <h3>No tasks yet</h3>
+
+                            <p>
+                                Create your first task and start making progress.
+                            </p>
+
+                            <a href="#" class="text-link">
+                                Create a task
+                            </a>
+                        </div>
+                    {% endfor %}
+
+                </div>
+
+            </article>
+
+            <article class="dashboard-panel project-panel">
+
+                <div class="panel-header">
+                    <div>
+                        <h2>Recent projects</h2>
+                        <p>Projects you own or collaborate on.</p>
+                    </div>
+
+                    <a href="#" class="text-link">
+                        View all
+                    </a>
+                </div>
+
+                <div class="project-list">
+
+                    {% for project in recent_projects %}
+                        <div class="project-item">
+
+                            <div class="project-icon">
+                                {{ project.title|first|upper }}
+                            </div>
+
+                            <div class="project-info">
+                                <strong>{{ project.title }}</strong>
+
+                                <span>
+                                    Created {{ project.created_at|date:"M d, Y" }}
+                                </span>
+                            </div>
+
+                        </div>
+
+                    {% empty %}
+                        <div class="empty-state compact-empty-state">
+                            <div class="empty-icon">▣</div>
+
+                            <h3>No projects yet</h3>
+
+                            <p>
+                                Create a project to organize work with your team.
+                            </p>
+
+                            <a href="#" class="text-link">
+                                Create a project
+                            </a>
+                        </div>
+                    {% endfor %}
+
+                </div>
+
+            </article>
+
+        </section>
+
+    </main>
+
+</div>
+
+{% endblock %}

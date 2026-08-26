@@ -1,11 +1,14 @@
 from django.contrib import messages
 from django.shortcuts import redirect, render
-from .forms import RegisterForm
 from urllib.parse import urlencode
 from django.contrib.auth import views as auth_views
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
+from django.utils import timezone
 
+from .models import Project, Task
+from .forms import RegisterForm
 
 # Create your views here.
 
@@ -58,7 +61,53 @@ def register_view(request):
 
 @login_required
 def dashboard_view(request):
+    user = request.user
+    now = timezone.now()
+
+    # Projects where the user is the owner or a member.
+    projects = (
+        Project.objects.filter(
+            Q(owner=user) | Q(memberships__user=user)
+        )
+        .distinct()
+    )
+
+    # Personal tasks owned by the user + project tasks assigned to the user.
+    my_tasks = Task.objects.filter(
+        Q(personal_owner=user) | Q(assigned_to=user)
+    ).distinct()
+
+    context = {
+        "todo_count": my_tasks.filter(
+            status=Task.Status.TODO
+        ).count(),
+
+        "doing_count": my_tasks.filter(
+            status=Task.Status.DOING
+        ).count(),
+
+        "done_count": my_tasks.filter(
+            status=Task.Status.DONE
+        ).count(),
+
+        "overdue_count": my_tasks.filter(
+            deadline__lt=now,
+        ).exclude(
+            status=Task.Status.DONE
+        ).count(),
+
+        "recent_tasks": my_tasks.select_related(
+            "project",
+            "personal_owner",
+        ).order_by("-created_at")[:5],
+
+        "recent_projects": projects.order_by(
+            "-created_at"
+        )[:4],
+    }
+
     return render(
         request,
         "dashboard.html",
+        context,
     )
