@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Login | Taskly
+{% endblock %}
+
+{% block content %}
+
+<div class="auth-layout">
+
+    <section class="auth-intro">
+        <div class="brand-mark">TaskFlow</div>
+
+        <p class="eyebrow">PERSONAL & TEAM WORKSPACE</p>
+
+        <h1>
+            Make progress,
+            <span>one task at a time.</span>
+        </h1>
+
+        <p class="intro-text">
+            Organize your projects, manage your tasks,
+            and keep your work moving without the clutter.
+        </p>
+    </section>
+
+    <section class="auth-card">
+
+        <div class="auth-header">
+            <h2>Welcome back</h2>
+
+            <p>
+                Sign in to continue to your workspace.
+            </p>
+        </div>
+
+        {% if form.non_field_errors %}
+            <div class="form-error">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        <form method="post" class="auth-form">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="id_username">
+                    Email address
+                </label>
+
+                <input
+                    type="email"
+                    name="username"
+                    id="id_username"
+                    placeholder="you@example.com"
+                    autocomplete="email"
+                    required
+                >
+
+                {% for error in form.username.errors %}
+                    <small class="field-error">
+                        {{ error }}
+                    </small>
+                {% endfor %}
+            </div>
+
+            <div class="form-group">
+                <div class="label-row">
+                    <label for="id_password">
+                        Password
+                    </label>
+
+                    <a href="#" class="forgot-link">
+                        Forgot password?
+                    </a>
+                </div>
+
+                <input
+                    type="password"
+                    name="password"
+                    id="id_password"
+                    placeholder="Enter your password"
+                    autocomplete="current-password"
+                    required
+                >
+
+                {% for error in form.password.errors %}
+                    <small class="field-error">
+                        {{ error }}
+                    </small>
+                {% endfor %}
+            </div>
+
+            {% if next %}
+                <input type="hidden" name="next" value="{{ next }}">
+            {% endif %}
+
+            <button type="submit" class="primary-button">
+                Sign in
+            </button>
+        </form>
+
+        <p class="auth-footer">
+            Don't have an account?
+
+            <a href="{% url 'register' %}">
+                Create one
+            </a>
+        </p>
+
+
+    </section>
+
+</div>
+
+{% endblock %}
