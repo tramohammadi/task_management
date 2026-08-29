@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ project.name }} | TaskFlow{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/projects.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="project-view-container">
+
+    <div class="project-nav-bar">
+        <a href="{% url 'project-list' %}" class="back-link">&larr; Back to Projects</a>
+        
+        {% if is_owner %}
+            <div class="project-header-actions">
+                <a href="{% url 'project-edit' project.id %}" class="btn-action-outline">Edit</a>
+                <a href="{% url 'project-delete' project.id %}" class="btn-action-danger">Delete</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="project-hero-card">
+        <div class="hero-left">
+            <span class="project-folder-icon">📁</span>
+            <div>
+                <h1 class="hero-title">{{ project.title }}</h1>
+                {% if project.description %}
+                    <p class="hero-desc">{{ project.description }}</p>
+                {% else %}
+                    <p class="hero-desc text-muted">No description provided.</p>
+                {% endif %}
+                <div class="hero-meta">
+                    <span>Owner: <strong>{{ project.owner.username }}</strong></span>
+                    <span class="meta-dot">•</span>
+                    <span>Created: {{ project.created_at|date:"M d, Y" }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="hero-stats">
+            <div class="stat-pill">
+                <span class="stat-num">{{ total_tasks }}</span>
+                <span class="stat-lbl">Tasks</span>
+            </div>
+            <div class="stat-pill">
+                <span class="stat-num">{{ done_tasks }}</span>
+                <span class="stat-lbl">Completed</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="project-tasks-section">
+        <div class="tasks-section-header">
+            <h3>Tasks</h3>
+            <a href="#" class="btn-primary-sm">+ Add Task</a>
+        </div>
+
+        {% if tasks %}
+            <div class="clean-task-list">
+                {% for task in tasks %}
+                    <div class="task-row-item">
+                        <div class="task-info">
+                            <span class="task-dot status-{{ task.status|lower }}"></span>
+                            <span class="task-title-text">{{ task.title }}</span>
+                        </div>
+                        <div class="task-meta-tags">
+                            <span class="badge-status">{{ task.get_status_display|default:task.status }}</span>
+                            <span class="badge-priority">{{ task.get_priority_display|default:task.priority }}</span>
+                            {% if task.assigned_to %}
+                                <span class="badge-user">@{{ task.assigned_to.username }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="tasks-empty-card">
+                <p>No tasks yet in this project.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

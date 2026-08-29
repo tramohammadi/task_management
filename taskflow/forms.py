@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import get_user_model
-
+from .models import Project 
 
 User = get_user_model()
 
@@ -66,3 +66,29 @@ class RegisterForm(UserCreationForm):
             )
 
         return email
+
+
+class ProjectForm(forms.ModelForm):
+    class Meta:
+        model = Project
+        fields = [
+            "title",
+            "description",
+        ]
+
+        widgets = {
+            "title": forms.TextInput(
+                attrs={
+                    "class": "form-input",
+                    "placeholder": "For example: Software Engineering Project",
+                }
+            ),
+
+            "description": forms.Textarea(
+                attrs={
+                    "class": "form-input form-textarea",
+                    "placeholder": "Describe the goal of this project...",
+                    "rows": 5,
+                }
+            ),
+        }

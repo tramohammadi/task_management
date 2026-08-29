@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+    <link
+        rel="stylesheet"
+        href="{% static 'css/projects.css' %}"
+    >
+{% endblock %}
+
+{% block title %}
+    {{ page_title }} | TaskFlow
+{% endblock %}
+
+{% block content %}
+
+<div class="simple-page-layout">
+
+    <div class="simple-page-header">
+        <a href="{% url 'project-list' %}" class="back-link">
+            ← Back to projects
+        </a>
+
+        <div>
+            <h1>{{ page_title }}</h1>
+
+            <p>
+                Give your project a clear name and an optional description.
+            </p>
+        </div>
+    </div>
+
+    <section class="form-card">
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="form-general-error">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="{{ form.title.id_for_label }}">
+                    Project name
+                </label>
+
+                {{ form.title }}
+
+                {% for error in form.title.errors %}
+                    <p class="field-error">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.description.id_for_label }}">
+                    Description
+                    <span class="optional-label">(optional)</span>
+                </label>
+
+                {{ form.description }}
+
+                {% for error in form.description.errors %}
+                    <p class="field-error">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <div class="form-actions">
+                {% if is_edit %}
+                    <a href="{% url 'project-detail' project.id %}" class="btn-cancel">Cancel</a>
+                {% else %}
+                    <a href="{% url 'project-list' %}" class="btn-cancel">Cancel</a>
+                {% endif %}
+
+                <button type="submit" class="primary-button">
+                    {{ submit_label }}
+                </button>
+            </div>
+
+        </form>
+
+    </section>
+
+</div>
+
+{% endblock %}

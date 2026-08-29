@@ -26,10 +26,11 @@
                 Dashboard
             </a>
 
-            <a href="#" class="nav-item">
+            <a href="{% url 'project-list' %}" class="nav-item">
                 <span class="nav-icon">▣</span>
                 My Projects
             </a>
+
 
             <a href="#" class="nav-item">
                 <span class="nav-icon">✓</span>
@@ -204,7 +205,7 @@
                         <p>Projects you own or collaborate on.</p>
                     </div>
 
-                    <a href="#" class="text-link">
+                    <a href="{% url 'project-list' %}" class="nav-item">
                         View all
                     </a>
                 </div>
@@ -238,7 +239,7 @@
                                 Create a project to organize work with your team.
                             </p>
 
-                            <a href="#" class="text-link">
+                            <a href="{% url 'project-create' %}" class="text-link">
                                 Create a project
                             </a>
                         </div>

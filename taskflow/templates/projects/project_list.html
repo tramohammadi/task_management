@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/projects.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
+
+{% block title %}
+    My Projects | TaskFlow
+{% endblock %}
+
+{% block content %}
+
+<div class="app-layout">
+
+    <aside class="sidebar">
+
+        <a href="{% url 'dashboard' %}" class="sidebar-brand">
+            <span class="brand-mark sidebar-logo">T</span>
+            <span>TaskFlow</span>
+        </a>
+
+        <nav class="sidebar-nav">
+            <a href="{% url 'dashboard' %}" class="nav-item">
+                <span class="nav-icon">⌂</span>
+                Dashboard
+            </a>
+
+            <a href="{% url 'project-list' %}" class="nav-item active">
+                <span class="nav-icon">▣</span>
+                My Projects
+            </a>
+
+            <a href="#" class="nav-item">
+                <span class="nav-icon">✓</span>
+                My Tasks
+            </a>
+
+            <a href="#" class="nav-item">
+                <span class="nav-icon">◌</span>
+                Notifications
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="user-mini-profile">
+                <div class="user-avatar">
+                    {{ request.user.username|first|upper }}
+                </div>
+
+                <div class="user-mini-info">
+                    <strong>{{ request.user.username }}</strong>
+                    <span>{{ request.user.email }}</span>
+                </div>
+            </div>
+
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+
+                <button type="submit" class="logout-button">
+                    <span>↪</span>
+                    Log out
+                </button>
+            </form>
+        </div>
+
+    </aside>
+
+    <main class="dashboard-main">
+
+        <header class="dashboard-header">
+            <div>
+                <p class="eyebrow">PROJECT WORKSPACE</p>
+                <h1>My projects</h1>
+
+                <p class="dashboard-subtitle">
+                    Organize your personal work and collaborate with your team.
+                </p>
+            </div>
+
+            <a
+                href="{% url 'project-create' %}"
+                class="primary-button create-task-button"
+            >
+                <span>+</span>
+                Create project
+            </a>
+        </header>
+
+        {% if projects %}
+            <section class="projects-grid">
+
+                {% for project in projects %}
+                    <article class="project-card">
+
+                        <div class="project-card-header">
+                            <div class="project-icon large-project-icon">
+                                {{ project.title|first|upper }}
+                            </div>
+
+                            {% if project.owner == request.user %}
+                                <span class="project-role owner-role">
+                                    Owner
+                                </span>
+                            {% else %}
+                                <span class="project-role member-role">
+                                    Member
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <h2>{{ project.title }}</h2>
+
+                        <p class="project-description">
+                            {{ project.description|default:"No description has been added yet."|truncatechars:130 }}
+                        </p>
+
+                        <div class="project-card-footer">
+                            <span>
+                                Created {{ project.created_at|date:"M d, Y" }}
+                            </span>
+
+                            <a href="{% url 'project-detail' project.id %}" class="secondary-button-sm">
+                                Open project →
+                            </a>
+                        </div>
+
+                    </article>
+                {% endfor %}
+
+            </section>
+
+        {% else %}
+            <section class="projects-empty-page">
+                <div class="empty-icon">▣</div>
+
+                <h2>No projects yet</h2>
+
+                <p>
+                    Create your first project to organize tasks,
+                    deadlines, and team collaboration.
+                </p>
+
+                <a
+                    href="{% url 'project-create' %}"
+                    class="primary-button"
+                >
+                    Create your first project
+                </a>
+            </section>
+        {% endif %}
+
+    </main>
+
+</div>
+
+{% endblock %}

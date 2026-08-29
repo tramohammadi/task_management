@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Delete {{ project.name }} | Task Manager{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/projects.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="delete-page-container">
+    <a href="{% url 'project-detail' project.id %}" class="back-link">&larr; Cancel &amp; Return</a>
+    
+    <div class="delete-card">
+        <div class="delete-warning-icon">⚠️</div>
+        <h2>Delete "{{ project.title }}"?</h2>
+        <p>Are you sure you want to permanently delete this project? All associated tasks will be removed. This action cannot be undone.</p>
+        
+        <form method="post" class="delete-form-actions">
+            {% csrf_token %}
+            <a href="{% url 'project-detail' project.id %}" class="btn-cancel">Cancel</a>
+            <button type="submit" class="btn-delete-confirm">Yes, Delete Project</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
