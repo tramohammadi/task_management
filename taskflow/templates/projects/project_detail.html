@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}{{ project.name }} | TaskFlow{% endblock %}
+{% block title %}{{ project.title }} | TaskFlow{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/projects.css' %}">
@@ -48,9 +48,14 @@
                 <span class="stat-num">{{ done_tasks }}</span>
                 <span class="stat-lbl">Completed</span>
             </div>
+            <div class="stat-pill">
+                <span class="stat-num">{{ memberships.count }}</span>
+                <span class="stat-lbl">Members</span>
+            </div>
         </div>
     </div>
 
+    <!-- Tasks Section -->
     <div class="project-tasks-section">
         <div class="tasks-section-header">
             <h3>Tasks</h3>
@@ -81,5 +86,72 @@
             </div>
         {% endif %}
     </div>
+
+    <!-- Team Members Section -->
+    <div class="project-tasks-section" style="margin-top: 24px;">
+        <div class="tasks-section-header">
+            <h3>Project Members</h3>
+        </div>
+
+        {% if is_manager and add_member_form %}
+            <form method="post" action="{% url 'project-add-member' project.id %}" class="add-member-inline-form">
+                {% csrf_token %}
+                <div class="form-row-inline">
+                    {{ add_member_form.email }}
+                    {{ add_member_form.role }}
+                    <button type="submit" class="btn-primary-sm">+ Add Member</button>
+                </div>
+            </form>
+        {% endif %}
+
+        <div class="clean-task-list" style="margin-top: 14px;">
+            {% for membership in memberships %}
+                <div class="task-row-item">
+                    <div class="task-info">
+                        <div class="user-avatar-sm">
+                            {{ membership.user.username|first|upper }}
+                        </div>
+                        <div>
+                            <strong>{{ membership.user.username }}</strong>
+                            <span class="member-email-sub">({{ membership.user.email }})</span>
+                        </div>
+                    </div>
+
+                    <div class="task-meta-tags" style="align-items: center;">
+                        {% if is_owner and membership.user != project.owner %}
+                            <!-- Owner can change roles -->
+                            <form method="post" action="{% url 'project-update-member-role' project.id membership.id %}" style="display:inline-flex; align-items: center; gap: 4px;">
+                                {% csrf_token %}
+                                <select name="role" class="form-select-sm" onchange="this.form.submit()">
+                                    <option value="MEMBER" {% if membership.role == "MEMBER" %}selected{% endif %}>Member</option>
+                                    <option value="MANAGER" {% if membership.role == "MANAGER" %}selected{% endif %}>Manager</option>
+                                </select>
+                            </form>
+                        {% else %}
+                            <span class="project-role {% if membership.role == 'OWNER' %}owner-role{% else %}member-role{% endif %}">
+                                {{ membership.get_role_display }}
+                            </span>
+                        {% endif %}
+
+                        <!-- Remove / Leave Action -->
+                        {% if membership.user != project.owner %}
+                            {% if is_manager or membership.user == request.user %}
+                                <form method="post" 
+                                    action="{% url 'project-remove-member' project.id membership.id %}" 
+                                    onsubmit="return confirm('{% if membership.user == request.user %}Are you sure you want to leave this project?{% else %}Are you sure you want to remove {{ membership.user.username }} from this project?{% endif %}');" 
+                                    style="display:inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn-text-danger">
+                                        {% if membership.user == request.user %}Leave{% else %}Remove{% endif %}
+                                    </button>
+                                </form>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
 </div>
 {% endblock %}

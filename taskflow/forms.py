@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import get_user_model
-from .models import Project 
+from .models import Project, ProjectMembership
 
 User = get_user_model()
 
@@ -92,3 +92,59 @@ class ProjectForm(forms.ModelForm):
                 }
             ),
         }
+
+
+class AddMemberForm(forms.Form):
+    email = forms.EmailField(
+        label="Member Email",
+        widget=forms.EmailInput(
+            attrs={
+                "class": "form-input",
+                "placeholder": "user@example.com",
+            }
+        ),
+    )
+    role = forms.ChoiceField(
+        choices=[
+            (ProjectMembership.Role.MEMBER, "Member"),
+            (ProjectMembership.Role.MANAGER, "Manager"),
+        ],
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.project = kwargs.pop("project", None)
+        super().__init__(*args, **kwargs)
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].lower().strip()
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            raise forms.ValidationError("No user found with this email address.")
+
+        if self.project:
+            if self.project.owner == user:
+                raise forms.ValidationError("The project owner is already a member.")
+            if ProjectMembership.objects.filter(project=self.project, user=user).exists():
+                raise forms.ValidationError("This user is already a member of the project.")
+
+        self.cleaned_data["user"] = user
+        return email
+
+
+class UpdateMemberRoleForm(forms.ModelForm):
+    class Meta:
+        model = ProjectMembership
+        fields = ["role"]
+        widgets = {
+            "role": forms.Select(attrs={"class": "form-select"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self.fields["role"].choices = [
+            (ProjectMembership.Role.MEMBER, "Member"),
+            (ProjectMembership.Role.MANAGER, "Manager"),
+        ]
