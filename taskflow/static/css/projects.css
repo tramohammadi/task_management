@@ -649,6 +649,11 @@
     cursor: pointer;
 }
 
+.form-select-sm option{
+    background-color: #5e9183;
+    color: #ffffff;
+} 
+
 .user-avatar-sm {
     width: 28px;
     height: 28px;

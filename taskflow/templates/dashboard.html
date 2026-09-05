@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 {% endblock %}
@@ -11,64 +12,7 @@
 {% block content %}
 
 <div class="app-layout">
-
-    <aside class="sidebar">
-
-        <a href="{% url 'dashboard' %}" class="sidebar-brand">
-            <span class="brand-mark sidebar-logo">T</span>
-            <span>TaskFlow</span>
-        </a>
-
-        <nav class="sidebar-nav">
-
-            <a href="{% url 'dashboard' %}" class="nav-item active">
-                <span class="nav-icon">⌂</span>
-                Dashboard
-            </a>
-
-            <a href="{% url 'project-list' %}" class="nav-item">
-                <span class="nav-icon">▣</span>
-                My Projects
-            </a>
-
-
-            <a href="#" class="nav-item">
-                <span class="nav-icon">✓</span>
-                My Tasks
-            </a>
-
-            <a href="#" class="nav-item">
-                <span class="nav-icon">◌</span>
-                Notifications
-            </a>
-
-        </nav>
-
-        <div class="sidebar-bottom">
-
-            <div class="user-mini-profile">
-                <div class="user-avatar">
-                    {{ request.user.username|first|upper }}
-                </div>
-
-                <div class="user-mini-info">
-                    <strong>{{ request.user.username }}</strong>
-                    <span>{{ request.user.email }}</span>
-                </div>
-            </div>
-
-            <form method="post" action="{% url 'logout' %}">
-                {% csrf_token %}
-
-                <button type="submit" class="logout-button">
-                    <span>↪</span>
-                    Log out
-                </button>
-            </form>
-
-        </div>
-
-    </aside>
+    {% include "includes/sidebar.html" %}
 
     <main class="dashboard-main">
 
@@ -85,7 +29,7 @@
                 </p>
             </div>
 
-            <a href="#" class="primary-button create-task-button">
+            <a href="{% url 'personal-task-create' %}" class="primary-button create-task-button">
                 <span>+</span>
                 Create task
             </a>
@@ -141,7 +85,7 @@
                         <p>Your latest personal and assigned tasks.</p>
                     </div>
 
-                    <a href="#" class="text-link">
+                    <a href="{% url 'task-list' %}" class="text-link">
                         View all
                     </a>
                 </div>
@@ -187,7 +131,7 @@
                                 Create your first task and start making progress.
                             </p>
 
-                            <a href="#" class="text-link">
+                            <a href="{% url 'personal-task-create' %}" class="text-link">
                                 Create a task
                             </a>
                         </div>
@@ -205,7 +149,7 @@
                         <p>Projects you own or collaborate on.</p>
                     </div>
 
-                    <a href="{% url 'project-list' %}" class="nav-item">
+                    <a href="{% url 'project-list' %}" class="text-link">
                         View all
                     </a>
                 </div>

@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'css/tasks.css' %}">
+{% endblock %}
+
+{% block title %}My Tasks | TaskFlow{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    {% include "includes/sidebar.html" %}
+
+    <main class="dashboard-main">
+        <header class="dashboard-header">
+            <div>
+                <p class="eyebrow">TASK WORKSPACE</p>
+                <h1>My Tasks</h1>
+                <p class="dashboard-subtitle">Manage, filter, and track all your team and personal tasks prioritized for focus.</p>
+            </div>
+            <a href="{% url 'personal-task-create' %}" class="primary-button create-task-button">
+                <span>+</span>
+                Create Personal Task
+            </a>
+        </header>
+
+        <!-- Search & Filter Bar -->
+        <div class="filter-toolbar-card">
+            <form method="get" action="{% url 'task-list' %}" class="filter-form-grid">
+                <div>
+                    <input type="text" name="q" value="{{ search_query }}" placeholder="Search title or description..." class="filter-input">
+                </div>
+
+                <div>
+                    <select name="type" class="filter-select">
+                        <option value="all" {% if task_type == 'all' %}selected{% endif %}>All Tasks</option>
+                        <option value="personal" {% if task_type == 'personal' %}selected{% endif %}>Personal Tasks</option>
+                        <option value="project" {% if task_type == 'project' %}selected{% endif %}>Project Tasks</option>
+                    </select>
+                </div>
+
+                <div>
+                    <select name="priority" class="filter-select">
+                        <option value="">All Priorities</option>
+                        {% for p_code, p_label in priority_choices %}
+                            <option value="{{ p_code }}" {% if priority_filter == p_code %}selected{% endif %}>{{ p_label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <select name="status" class="filter-select">
+                        <option value="">All Statuses</option>
+                        {% for s_code, s_label in status_choices %}
+                            <option value="{{ s_code }}" {% if status_filter == s_code %}selected{% endif %}>{{ s_label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-actions">
+                    <button type="submit" class="btn-filter-apply">Filter</button>
+                    {% if search_query or status_filter or priority_filter or task_type != 'all' %}
+                        <a href="{% url 'task-list' %}" class="btn-filter-reset">Reset</a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <!-- Task List -->
+        {% if tasks %}
+            <div class="clean-task-list">
+                {% for task in tasks %}
+                    <div class="task-row-item">
+                        <div class="task-left-section">
+                            
+                            {% if task.status == 'TODO' %}
+                                <span class="status-pill status-pill-todo">
+                                    <span class="status-symbol">○</span> To Do
+                                </span>
+                            {% elif task.status == 'DOING' %}
+                                <span class="status-pill status-pill-doing">
+                                    <span class="status-symbol">◐</span>Doing
+                                </span>
+                            {% elif task.status == 'DONE' %}
+                                <span class="status-pill status-pill-done">
+                                    <span class="status-symbol">✓</span> Done
+                                </span>
+                            {% endif %}
+
+                            <div class="task-info">
+                                <span class="task-title-text">{{ task.title }}</span>
+                                <div class="task-sub-meta">
+                                    {% if task.project %}
+                                        <span>📁 <a href="{% url 'project-detail' task.project.id %}">{{ task.project.title }}</a></span>
+                                    {% else %}
+                                        <span>👤 Personal</span>
+                                    {% endif %}
+
+                                    {% if task.assigned_to %}
+                                        <span>• @{{ task.assigned_to.username }}</span>
+                                    {% endif %}
+
+                                    {% if task.deadline %}
+                                        <span class="{% if task.is_overdue %}deadline-overdue{% endif %}">
+                                            • Due {{ task.deadline|date:"M d" }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="task-right-section">
+
+                            <form method="post" action="{% url 'task-update-status' task.id %}" style="margin: 0;">
+                                {% csrf_token %}
+                                <select name="status" class="form-select-sm" onchange="this.form.submit()" title="Change status">
+                                    <option value="TODO" {% if task.status == 'TODO' %}selected{% endif %}>To Do</option>
+                                    <option value="DOING" {% if task.status == 'DOING' %}selected{% endif %}>Doing</option>
+                                    <option value="DONE" {% if task.status == 'DONE' %}selected{% endif %}>Done</option>
+                                </select>
+                            </form>
+
+                            <!-- برچسب اولویت -->
+                            <span class="badge-priority priority-{{ task.priority|lower }}">
+                                {{ task.get_priority_display }}
+                            </span>
+
+                            <!-- دکمه‌های ویرایش / حذف -->
+                            <div class="task-row-actions">
+                                {% if task.personal_owner %}
+                                    <a href="{% url 'personal-task-edit' task.id %}" class="btn-text-sm">Edit</a>
+                                    <a href="{% url 'personal-task-delete' task.id %}" class="btn-text-danger-sm" title="Delete">✕</a>
+                                {% elif task.project %}
+                                    <a href="{% url 'project-task-edit' task.project.id task.id %}" class="btn-text-sm">Edit</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <section class="tasks-empty-card">
+                <div class="empty-icon">✓</div>
+                <h2>No tasks found</h2>
+                <p>No tasks match your selected filter criteria.</p>
+                <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
+                    <a href="{% url 'task-list' %}" class="btn-filter-reset">Clear Filters</a>
+                    <a href="{% url 'personal-task-create' %}" class="primary-button create-task-button">+ Create Personal Task</a>
+                </div>
+            </section>
+        {% endif %}
+    </main>
+</div>
+{% endblock %}

@@ -59,8 +59,9 @@
     <div class="project-tasks-section">
         <div class="tasks-section-header">
             <h3>Tasks</h3>
-            <a href="#" class="btn-primary-sm">+ Add Task</a>
+            <a href="{% url 'project-task-create' project.id %}" class="btn-primary-sm">+ Add Task</a>
         </div>
+
 
         {% if tasks %}
             <div class="clean-task-list">

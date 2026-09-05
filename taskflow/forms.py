@@ -1,7 +1,8 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import get_user_model
-from .models import Project, ProjectMembership
+from .models import Project, ProjectMembership, Task
+from django.db.models import Q
 
 User = get_user_model()
 
@@ -148,3 +149,52 @@ class UpdateMemberRoleForm(forms.ModelForm):
             (ProjectMembership.Role.MEMBER, "Member"),
             (ProjectMembership.Role.MANAGER, "Manager"),
         ]
+
+
+class ProjectTaskForm(forms.ModelForm):
+    class Meta:
+        model = Task
+        fields = ["title", "description", "assigned_to", "priority", "status", "deadline"]
+        widgets = {
+            "title": forms.TextInput(attrs={"class": "form-input", "placeholder": "Task title..."}),
+            "description": forms.Textarea(attrs={"class": "form-input form-textarea", "placeholder": "Task description...", "rows": 4}),
+            "assigned_to": forms.Select(attrs={"class": "form-select"}),
+            "priority": forms.Select(attrs={"class": "form-select"}),
+            "status": forms.Select(attrs={"class": "form-select"}),
+            "deadline": forms.DateTimeInput(attrs={"class": "form-input", "type": "datetime-local"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        project = kwargs.pop("project", None)
+        super().__init__(*args, **kwargs)
+        
+        if project:
+            if not self.instance.pk:
+                self.instance.project = project
+
+            member_user_ids = ProjectMembership.objects.filter(project=project).values_list("user_id", flat=True)
+            self.fields["assigned_to"].queryset = User.objects.filter(
+                Q(id__in=member_user_ids) | Q(id=project.owner_id)
+            ).distinct()
+            self.fields["assigned_to"].empty_label = "Unassigned"
+
+
+class PersonalTaskForm(forms.ModelForm):
+    class Meta:
+        model = Task
+        fields = ["title", "description", "priority", "status", "deadline"]
+        widgets = {
+            "title": forms.TextInput(attrs={"class": "form-input", "placeholder": "What do you need to do?"}),
+            "description": forms.Textarea(attrs={"class": "form-input form-textarea", "placeholder": "Add any notes...", "rows": 4}),
+            "priority": forms.Select(attrs={"class": "form-select"}),
+            "status": forms.Select(attrs={"class": "form-select"}),
+            "deadline": forms.DateTimeInput(attrs={"class": "form-input", "type": "datetime-local"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user", None)
+        super().__init__(*args, **kwargs)
+        
+        if user and not self.instance.pk:
+            self.instance.personal_owner = user
+            self.instance.assigned_to = user
