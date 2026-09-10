@@ -156,27 +156,45 @@ class ProjectTaskForm(forms.ModelForm):
         model = Task
         fields = ["title", "description", "assigned_to", "priority", "status", "deadline"]
         widgets = {
-            "title": forms.TextInput(attrs={"class": "form-input", "placeholder": "Task title..."}),
-            "description": forms.Textarea(attrs={"class": "form-input form-textarea", "placeholder": "Task description...", "rows": 4}),
+            "title": forms.TextInput(
+                attrs={"class": "form-input", "placeholder": "Task title..."}
+            ),
+            "description": forms.Textarea(
+                attrs={
+                    "class": "form-input form-textarea",
+                    "placeholder": "Task description...",
+                    "rows": 4,
+                }
+            ),
             "assigned_to": forms.Select(attrs={"class": "form-select"}),
             "priority": forms.Select(attrs={"class": "form-select"}),
             "status": forms.Select(attrs={"class": "form-select"}),
-            "deadline": forms.DateTimeInput(attrs={"class": "form-input", "type": "datetime-local"}),
+            "deadline": forms.DateTimeInput(
+                attrs={"class": "form-input", "type": "datetime-local"}
+            ),
         }
 
     def __init__(self, *args, **kwargs):
         project = kwargs.pop("project", None)
+        is_manager = kwargs.pop("is_manager", True)
         super().__init__(*args, **kwargs)
-        
+
         if project:
             if not self.instance.pk:
                 self.instance.project = project
 
-            member_user_ids = ProjectMembership.objects.filter(project=project).values_list("user_id", flat=True)
+            member_user_ids = ProjectMembership.objects.filter(
+                project=project
+            ).values_list("user_id", flat=True)
+
             self.fields["assigned_to"].queryset = User.objects.filter(
                 Q(id__in=member_user_ids) | Q(id=project.owner_id)
             ).distinct()
             self.fields["assigned_to"].empty_label = "Unassigned"
+
+        # Members cannot choose who to assign — hide the field entirely
+        if not is_manager:
+            self.fields.pop("assigned_to")
 
 
 class PersonalTaskForm(forms.ModelForm):

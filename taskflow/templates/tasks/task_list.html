@@ -80,7 +80,7 @@
                                 </span>
                             {% elif task.status == 'DOING' %}
                                 <span class="status-pill status-pill-doing">
-                                    <span class="status-symbol">◐</span>Doing
+                                    <span class="status-symbol">◐</span> Doing
                                 </span>
                             {% elif task.status == 'DONE' %}
                                 <span class="status-pill status-pill-done">
@@ -121,18 +121,24 @@
                                 </select>
                             </form>
 
-                            <!-- برچسب اولویت -->
                             <span class="badge-priority priority-{{ task.priority|lower }}">
                                 {{ task.get_priority_display }}
                             </span>
 
-                            <!-- دکمه‌های ویرایش / حذف -->
+
                             <div class="task-row-actions">
                                 {% if task.personal_owner %}
                                     <a href="{% url 'personal-task-edit' task.id %}" class="btn-text-sm">Edit</a>
                                     <a href="{% url 'personal-task-delete' task.id %}" class="btn-text-danger-sm" title="Delete">✕</a>
                                 {% elif task.project %}
-                                    <a href="{% url 'project-task-edit' task.project.id task.id %}" class="btn-text-sm">Edit</a>
+                                    
+                                    {% if task.created_by == request.user or task.project.owner == request.user %}
+                                        <a href="{% url 'project-task-edit' task.project.id task.id %}" class="btn-text-sm">Edit</a>
+                                        <a href="{% url 'project-task-delete' task.project.id task.id %}"
+                                           class="btn-text-danger-sm"
+                                           onclick="return confirm('Delete task \'{{ task.title }}\'?');"
+                                           title="Delete">✕</a>
+                                    {% endif %}
                                 {% endif %}
                             </div>
                         </div>

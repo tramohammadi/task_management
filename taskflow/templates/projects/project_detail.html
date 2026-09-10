@@ -61,8 +61,6 @@
             <h3>Tasks</h3>
             <a href="{% url 'project-task-create' project.id %}" class="btn-primary-sm">+ Add Task</a>
         </div>
-
-
         {% if tasks %}
             <div class="clean-task-list">
                 {% for task in tasks %}
@@ -77,13 +75,20 @@
                             {% if task.assigned_to %}
                                 <span class="badge-user">@{{ task.assigned_to.username }}</span>
                             {% endif %}
+
+                            {% if is_manager or task.created_by == request.user %}
+                                <a href="{% url 'project-task-edit' project.id task.id %}" class="btn-text-sm">Edit</a>
+                            {% endif %}
+
+                            {% if is_manager or task.created_by == request.user %}
+                                <a href="{% url 'project-task-delete' project.id task.id %}"
+                                   class="btn-text-danger-sm"
+                                   onclick="return confirm('Delete task \'{{ task.title }}\'?');"
+                                   title="Delete">✕</a>
+                            {% endif %}
                         </div>
                     </div>
                 {% endfor %}
-            </div>
-        {% else %}
-            <div class="tasks-empty-card">
-                <p>No tasks yet in this project.</p>
             </div>
         {% endif %}
     </div>

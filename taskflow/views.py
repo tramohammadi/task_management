@@ -280,16 +280,22 @@ def project_task_create(request, project_id):
     if not role:
         raise PermissionDenied("You are not a member of this project.")
 
+    is_manager = role in [ProjectMembership.Role.OWNER, ProjectMembership.Role.MANAGER]
+
     if request.method == "POST":
-        form = ProjectTaskForm(request.POST, project=project)
+        form = ProjectTaskForm(request.POST, project=project, is_manager=is_manager)
         if form.is_valid():
             task = form.save(commit=False)
             task.project = project
+            task.created_by = request.user
+            # Members can only assign to themselves
+            if not is_manager:
+                task.assigned_to = request.user
             task.save()
             messages.success(request, f'Task "{task.title}" created successfully.')
             return redirect("project-detail", project_id=project.id)
     else:
-        form = ProjectTaskForm(project=project)
+        form = ProjectTaskForm(project=project, is_manager=is_manager)
 
     context = {
         "form": form,
@@ -306,23 +312,34 @@ def project_task_create(request, project_id):
 def project_task_edit(request, project_id, task_id):
     project = get_object_or_404(Project, id=project_id)
     task = get_object_or_404(Task, id=task_id, project=project)
+    
     role = get_project_role(request.user, project)
+    if not role:
+        raise PermissionDenied("You are not a member of this project.")
 
-    if not role or (role == ProjectMembership.Role.MEMBER and task.assigned_to != request.user):
+    if not task.can_edit(request.user):
         raise PermissionDenied("You do not have permission to edit this task.")
 
+    is_manager = role in [ProjectMembership.Role.OWNER, ProjectMembership.Role.MANAGER]
+
     if request.method == "POST":
-        form = ProjectTaskForm(request.POST, instance=task, project=project)
+        form = ProjectTaskForm(
+            request.POST, instance=task, project=project, is_manager=is_manager
+        )
         if form.is_valid():
-            form.save()
+            task = form.save(commit=False)
+            if not is_manager:
+                task.assigned_to = form.initial.get("assigned_to", task.assigned_to)
+            task.save()
             messages.success(request, f'Task "{task.title}" updated.')
             return redirect("project-detail", project_id=project.id)
     else:
-
         initial_data = {}
         if task.deadline:
             initial_data["deadline"] = task.deadline.strftime("%Y-%m-%dT%H:%M")
-        form = ProjectTaskForm(instance=task, project=project, initial=initial_data)
+        form = ProjectTaskForm(
+            instance=task, project=project, is_manager=is_manager, initial=initial_data
+        )
 
     context = {
         "form": form,
@@ -339,10 +356,13 @@ def project_task_edit(request, project_id, task_id):
 def project_task_delete(request, project_id, task_id):
     project = get_object_or_404(Project, id=project_id)
     task = get_object_or_404(Task, id=task_id, project=project)
-    role = get_project_role(request.user, project)
 
-    if role not in [ProjectMembership.Role.OWNER, ProjectMembership.Role.MANAGER]:
-        raise PermissionDenied("Only Owners and Managers can delete tasks.")
+    role = get_project_role(request.user, project)
+    if not role:
+        raise PermissionDenied("You are not a member of this project.")
+
+    if not task.can_delete(request.user):
+        raise PermissionDenied("You do not have permission to delete this task.")
 
     if request.method == "POST":
         task_title = task.title
@@ -350,7 +370,11 @@ def project_task_delete(request, project_id, task_id):
         messages.success(request, f'Task "{task_title}" was deleted.')
         return redirect("project-detail", project_id=project.id)
 
-    return render(request, "tasks/task_confirm_delete.html", {"task": task, "project": project})
+    return render(
+        request,
+        "tasks/task_confirm_delete.html",
+        {"task": task, "project": project},
+    )
 
 
 @login_required
