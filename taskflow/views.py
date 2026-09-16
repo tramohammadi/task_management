@@ -12,6 +12,11 @@ from django.views.decorators.http import require_POST
 from .models import Project, Task, ProjectMembership
 from .forms import RegisterForm, ProjectForm, AddMemberForm, UpdateMemberRoleForm, ProjectTaskForm,PersonalTaskForm
 
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+
+from .ai.service import generate_task_suggestions
+import json
 
 class CustomLoginView(auth_views.LoginView):
     template_name = "registration/login.html"
@@ -524,3 +529,142 @@ def personal_task_delete(request, task_id):
         return redirect("task-list")
 
     return render(request, "tasks/task_confirm_delete.html", {"task": task, "is_personal": True})
+
+@login_required
+@require_POST
+def ai_generate_tasks(request, project_id):
+    project = get_object_or_404(Project, id=project_id)
+
+    # Check project access
+    if project.owner != request.user:
+        membership = ProjectMembership.objects.filter(
+            project=project,
+            user=request.user,
+        ).first()
+
+        if not membership:
+            raise PermissionDenied
+
+    project_description = project.description.strip()
+
+    if not project_description:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Please add a project description first.",
+            },
+            status=400,
+        )
+
+    try:
+        suggestions = generate_task_suggestions(
+            project_description
+        )
+
+    except Exception:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Unable to generate AI suggestions.",
+            },
+            status=500,
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "suggestions": suggestions,
+        }
+    )
+
+@login_required
+@require_POST
+def ai_create_tasks(request, project_id):
+    project = get_object_or_404(Project, id=project_id)
+
+    # Check project access
+    if project.owner != request.user:
+        membership = ProjectMembership.objects.filter(
+            project=project,
+            user=request.user,
+        ).first()
+
+        if not membership:
+            raise PermissionDenied
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Invalid request data.",
+            },
+            status=400,
+        )
+
+    suggestions = data.get("suggestions", [])
+
+    if not isinstance(suggestions, list):
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Invalid suggestions data.",
+            },
+            status=400,
+        )
+
+    valid_priorities = {
+        Task.Priority.LOW,
+        Task.Priority.MEDIUM,
+        Task.Priority.HIGH,
+    }
+
+    created_tasks = []
+
+    for suggestion in suggestions[:7]:
+
+        if not isinstance(suggestion, dict):
+            continue
+
+        title = str(
+            suggestion.get("title", "")
+        ).strip()
+
+        description = str(
+            suggestion.get("description", "")
+        ).strip()
+
+        priority = str(
+            suggestion.get("priority", Task.Priority.MEDIUM)
+        ).upper().strip()
+
+        if not title:
+            continue
+
+        if priority not in valid_priorities:
+            priority = Task.Priority.MEDIUM
+
+        task = Task(
+            project=project,
+            title=title[:255],
+            description=description,
+            priority=priority,
+            status=Task.Status.TODO,
+            created_by=request.user,
+            is_ai_suggested=True,
+        )
+
+        task.full_clean()
+        task.save()
+
+        created_tasks.append({
+            "id": task.id,
+            "title": task.title,
+        })
+
+    return JsonResponse({
+        "success": True,
+        "created_tasks": created_tasks,
+        "count": len(created_tasks),
+    })

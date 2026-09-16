@@ -36,5 +36,9 @@ urlpatterns = [
 
     # Quick Status Update (Works for both personal and project tasks)
     path("tasks/<int:task_id>/status/", views.task_update_status, name="task-update-status"),
+
+    path("projects/<int:project_id>/ai/generate/", views.ai_generate_tasks, name="ai-generate-tasks",),
+
+    path("projects/<int:project_id>/ai/create/", views.ai_create_tasks, name="ai-create-tasks",),
 ]
 
