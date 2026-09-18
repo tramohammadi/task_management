@@ -81,7 +81,8 @@ def dashboard(request):
 
     unread_count = Notification.objects.filter(user=user, is_read=False).count()
     if unread_count > 0:
-        messages.info(request, f"You have {unread_count} unread notification(s).")
+        messages.info(request, f"You have {unread_count} unread notification(s).",
+                        extra_tags="persistent-notif")
 
     projects = Project.objects.filter(
         Q(owner=user) | Q(memberships__user=user)
@@ -105,6 +106,13 @@ def dashboard(request):
 
 @login_required
 def project_list(request):
+    check_and_create_deadline_notifications(request.user)
+
+    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+    if unread_count > 0:
+        messages.info(request, f"You have {unread_count} unread notification(s).",
+            extra_tags="persistent-notif"
+        )
     projects = (
         Project.objects.filter(
             Q(owner=request.user) | Q(memberships__user=request.user)
@@ -492,6 +500,13 @@ def task_update_status(request, task_id):
 
 @login_required
 def task_list(request):
+    check_and_create_deadline_notifications(request.user)
+
+    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+    if unread_count > 0:
+        messages.info(request, f"You have {unread_count} unread notification(s).",
+            extra_tags="persistent-notif"
+        )
     user = request.user
 
     task_type = request.GET.get("type", "all")

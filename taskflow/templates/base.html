@@ -4,7 +4,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"پcontent="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>
         {% block title %}
@@ -26,32 +26,34 @@
         {% if messages %}
             <div class="messages-container">
                 {% for message in messages %}
-                    <div class="message message-{{ message.tags }}">
+                    <div class="message message-{{ message.level_tag }} {{ message.extra_tags }}">
                         {{ message }}
                     </div>
                 {% endfor %}
             </div>
         {% endif %}
 
+
         {% block content %}
         {% endblock %}
 
     </main>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const autoDismissMessages = document.querySelectorAll('.message:not(.persistent-notif), .alert:not(.persistent-notif)');
+
+        autoDismissMessages.forEach(function (msg) {
+            setTimeout(function () {
+                msg.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+                msg.style.opacity = "0";
+                msg.style.transform = "translateY(-10px)";
+                setTimeout(function () {
+                    msg.remove();
+                }, 500);
+            }, 4000);
+        });
+    });
+    </script>
 </body>
 </html>
-
-<script>
-    const messages = document.querySelectorAll(".message");
-
-    messages.forEach((message) => {
-        setTimeout(() => {
-            message.style.transition = "opacity 0.5s ease";
-            message.style.opacity = "0";
-
-            setTimeout(() => {
-                message.remove();
-            }, 500);
-        }, 4000);
-    });
-</script>
-
