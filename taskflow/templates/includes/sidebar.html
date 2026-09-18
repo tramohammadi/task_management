@@ -13,7 +13,6 @@
             Dashboard
         </a>
 
-        <!-- اگر خواستی روی صفحه‌های مربوط به پروژه (لیست، ساخت و ...) هم فعال باشه از 'project' in request.resolver_match.url_name استفاده کن -->
         <a href="{% url 'project-list' %}" 
            class="nav-item {% if request.resolver_match.url_name == 'project-list' %}active{% endif %}">
             <span class="nav-icon">▣</span>
@@ -26,10 +25,15 @@
             My Tasks
         </a>
 
-        <a href="#" class="nav-item">
+        <a href="{% url 'notification-list' %}" 
+        class="nav-item {% if request.resolver_match.url_name == 'notification-list' %}active{% endif %}">
             <span class="nav-icon">◌</span>
             Notifications
+            {% if unread_notifications_count > 0 %}
+                <span class="sidebar-badge">{{ unread_notifications_count }}</span>
+            {% endif %}
         </a>
+
 
     </nav>
 

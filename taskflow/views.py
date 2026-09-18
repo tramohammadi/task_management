@@ -8,15 +8,15 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-
-from .models import Project, Task, ProjectMembership
-from .forms import RegisterForm, ProjectForm, AddMemberForm, UpdateMemberRoleForm, ProjectTaskForm,PersonalTaskForm
-
+from datetime import timedelta
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-
 from .ai.service import generate_task_suggestions
 import json
+
+from .models import Project, Task, ProjectMembership, Notification
+from .forms import RegisterForm, ProjectForm, AddMemberForm, UpdateMemberRoleForm, ProjectTaskForm,PersonalTaskForm
+
 
 class CustomLoginView(auth_views.LoginView):
     template_name = "registration/login.html"
@@ -47,10 +47,41 @@ def register(request):
     return render(request, "registration/register.html", {"form": form})
 
 
+def check_and_create_deadline_notifications(user):
+    now = timezone.now()
+    two_days_later = now + timedelta(days=2)
+
+    urgent_tasks = Task.objects.filter(
+        Q(personal_owner=user) | Q(assigned_to=user),
+        deadline__isnull=False,
+        deadline__gte=now,
+        deadline__lte=two_days_later,
+    ).exclude(status=Task.Status.DONE)
+
+    for task in urgent_tasks:
+        already_notified = Notification.objects.filter(
+            user=user,
+            task=task,
+            message__icontains="deadline is approaching"
+        ).exists()
+
+        if not already_notified:
+            Notification.objects.create(
+                user=user,
+                task=task,
+                message=f"Reminder: Task '{task.title}' deadline is approaching ({task.deadline.strftime('%b %d, %H:%M')})."
+            )
+
 @login_required
 def dashboard(request):
     user = request.user
     now = timezone.now()
+
+    check_and_create_deadline_notifications(user)
+
+    unread_count = Notification.objects.filter(user=user, is_read=False).count()
+    if unread_count > 0:
+        messages.info(request, f"You have {unread_count} unread notification(s).")
 
     projects = Project.objects.filter(
         Q(owner=user) | Q(memberships__user=user)
@@ -211,6 +242,11 @@ def project_add_member(request, project_id):
             user=user,
             role=role,
         )
+        if user != request.user:
+            Notification.objects.create(
+                user=user,
+                message=f"You have been added to project '{project.title}' as {role}."
+            )
         messages.success(request, f"{user.email} added to project successfully.")
     else:
         for error in form.errors.values():
@@ -281,26 +317,54 @@ def get_project_role(user, project):
 @login_required
 def project_task_create(request, project_id):
     project = get_object_or_404(Project, id=project_id)
+
     role = get_project_role(request.user, project)
     if not role:
         raise PermissionDenied("You are not a member of this project.")
 
-    is_manager = role in [ProjectMembership.Role.OWNER, ProjectMembership.Role.MANAGER]
+    is_manager = role in [
+        ProjectMembership.Role.OWNER,
+        ProjectMembership.Role.MANAGER,
+    ]
 
     if request.method == "POST":
-        form = ProjectTaskForm(request.POST, project=project, is_manager=is_manager)
+        form = ProjectTaskForm(
+            request.POST,
+            project=project,
+            is_manager=is_manager,
+        )
+
         if form.is_valid():
             task = form.save(commit=False)
             task.project = project
             task.created_by = request.user
-            # Members can only assign to themselves
+
             if not is_manager:
                 task.assigned_to = request.user
+
             task.save()
-            messages.success(request, f'Task "{task.title}" created successfully.')
+
+            if task.assigned_to and task.assigned_to != request.user:
+                Notification.objects.create(
+                    user=task.assigned_to,
+                    task=task,
+                    message=(
+                        f"You have been assigned to task "
+                        f"'{task.title}' in project '{project.title}'."
+                    ),
+                )
+
+            messages.success(
+                request,
+                f'Task "{task.title}" created successfully.',
+            )
             return redirect("project-detail", project_id=project.id)
+
     else:
-        form = ProjectTaskForm(project=project, is_manager=is_manager)
+        form = ProjectTaskForm(
+            project=project,
+            is_manager=is_manager,
+        )
 
     context = {
         "form": form,
@@ -310,6 +374,7 @@ def project_task_create(request, project_id):
         "is_edit": False,
         "is_personal": False,
     }
+
     return render(request, "tasks/task_form.html", context)
 
 
@@ -331,11 +396,28 @@ def project_task_edit(request, project_id, task_id):
         form = ProjectTaskForm(
             request.POST, instance=task, project=project, is_manager=is_manager
         )
+        old_assigned_to = task.assigned_to
+        old_priority = task.priority
+
         if form.is_valid():
             task = form.save(commit=False)
             if not is_manager:
                 task.assigned_to = form.initial.get("assigned_to", task.assigned_to)
             task.save()
+
+            if task.assigned_to and task.assigned_to != old_assigned_to and task.assigned_to != request.user:
+                Notification.objects.create(
+                    user=task.assigned_to,
+                    task=task,
+                    message=f"You have been assigned to task '{task.title}' in project '{project.title}'."
+                )
+
+            if task.assigned_to and task.priority != old_priority:
+                Notification.objects.create(
+                    user=task.assigned_to,
+                    task=task,
+                    message=f"Priority of task '{task.title}' was changed from {old_priority} to {task.priority}."
+                )
             messages.success(request, f'Task "{task.title}" updated.')
             return redirect("project-detail", project_id=project.id)
     else:
@@ -668,3 +750,29 @@ def ai_create_tasks(request, project_id):
         "created_tasks": created_tasks,
         "count": len(created_tasks),
     })
+
+@login_required
+def notification_list(request):
+    check_and_create_deadline_notifications(request.user)
+
+    notifications = Notification.objects.filter(user=request.user).select_related("task").order_by("-created_at")
+
+    return render(request, "notifications/notification_list.html", {"notifications": notifications})
+
+
+@login_required
+@require_POST
+def mark_notification_as_read(request, notification_id):
+    notif = get_object_or_404(Notification, id=notification_id, user=request.user)
+    notif.is_read = True
+    notif.save()
+    return redirect("notification-list")
+
+
+@login_required
+@require_POST
+def mark_all_notifications_as_read(request):
+    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    messages.success(request, "All notifications marked as read.")
+    return redirect("notification-list")
+

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    Notifications | TaskFlow
+{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/notifications.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    {% include "includes/sidebar.html" %}
+
+    <main class="dashboard-main">
+
+        <header class="notifications-header">
+            <div>
+                <p class="eyebrow">YOUR INBOX</p>
+                <h1>Notifications</h1>
+            </div>
+
+            {% if notifications %}
+                <form method="post" action="{% url 'notification-mark-all-read' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="mark-all-btn">
+                        <span>✓</span> Mark all as read
+                    </button>
+                </form>
+            {% endif %}
+        </header>
+
+        <section class="dashboard-panel">
+            <div class="notifications-list">
+                {% for notif in notifications %}
+                    <article class="notification-card {% if not notif.is_read %}unread{% endif %}">
+                        
+                        <div class="notification-main">
+                            <div class="notification-icon-wrapper">
+                                {% if notif.task %}
+                                    ✓
+                                {% else %}
+                                    🔔
+                                {% endif %}
+                            </div>
+
+                            <div class="notification-body">
+                                <p class="notification-message">
+                                    {{ notif.message }}
+                                </p>
+                                <span class="notification-time">
+                                    {{ notif.created_at|timesince }} ago
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="notification-actions">
+                            {% if not notif.is_read %}
+                                <form method="post" action="{% url 'notification-mark-read' notif.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="mark-read-btn">
+                                        Mark as read
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+
+                    </article>
+                {% empty %}
+                    <div class="empty-state empty-notifications">
+                        <div class="empty-icon">🔔</div>
+                        <h3>No notifications yet</h3>
+                        <p>You're all caught up! Important updates will appear here.</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+    </main>
+</div>
+{% endblock %}
