@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    Performance Reports | TaskFlow
+{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/reports.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+
+    {% include "includes/sidebar.html" %}
+
+    <main class="dashboard-main report-main">
+
+        <header class="reports-header">
+            <div>
+                <p class="eyebrow">ANALYTICS</p>
+                <h1>Performance Reports</h1>
+                <p class="reports-subtitle">
+                    Track your personal productivity and project progress.
+                </p>
+            </div>
+
+            <form method="get" class="report-filter-form">
+                <label for="period">Report period:</label>
+
+                <select name="period" id="period" onchange="this.form.submit()">
+                    <option value="all"
+                        {% if report_period == "all" %}selected{% endif %}>
+                        All Time
+                    </option>
+
+                    <option value="7"
+                        {% if report_period == "7" %}selected{% endif %}>
+                        Last 7 Days
+                    </option>
+
+                    <option value="30"
+                        {% if report_period == "30" %}selected{% endif %}>
+                        Last 30 Days
+                    </option>
+
+                    <option value="month"
+                        {% if report_period == "month" %}selected{% endif %}>
+                        This Month
+                    </option>
+                </select>
+            </form>
+
+        </header>
+
+        <!-- Personal performance -->
+        <section class="report-section">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">PERSONAL TASKS</p>
+                    <h2>My Personal Performance</h2>
+                </div>
+
+                <div class="progress-circle">
+                    {{ personal_metrics.completion_rate }}%
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <article class="metric-card">
+                    <span>Total Tasks</span>
+                    <strong>{{ personal_metrics.total }}</strong>
+                </article>
+
+                <article class="metric-card metric-success">
+                    <span>Completed</span>
+                    <strong>{{ personal_metrics.done }}</strong>
+                </article>
+
+                <article class="metric-card metric-progress">
+                    <span>In Progress</span>
+                    <strong>{{ personal_metrics.doing }}</strong>
+                </article>
+
+                <article class="metric-card metric-warning">
+                    <span>To Do</span>
+                    <strong>{{ personal_metrics.todo }}</strong>
+                </article>
+
+                <article class="metric-card metric-danger">
+                    <span>Overdue</span>
+                    <strong>{{ personal_metrics.overdue }}</strong>
+                </article>
+
+                <article class="metric-card">
+                    <span>Completed On Time</span>
+                    <strong>{{ personal_metrics.completed_on_time }}</strong>
+                </article>
+
+                <article class="metric-card metric-warning">
+                    <span>Due Soon</span>
+                    <strong>{{ personal_metrics.due_soon }}</strong>
+                </article>
+
+                <article class="metric-card metric-success">
+                    <span>On-Time Rate</span>
+                    <strong>{{ personal_metrics.on_time_rate }}%</strong>
+                </article>
+
+            </div>
+
+            <div class="progress-bar-container">
+                <div class="progress-bar">
+                    <div
+                        class="progress-bar-fill"
+                        style="width: {{ personal_metrics.completion_rate }}%;">
+                    </div>
+                </div>
+
+                <span>
+                    {{ personal_metrics.completion_rate }}% completed
+                </span>
+            </div>
+        </section>
+
+        <!-- Owner project reports -->
+        <section class="report-section">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">PROJECT MANAGEMENT</p>
+                    <h2>My Project Reports</h2>
+                </div>
+            </div>
+
+            {% if project_reports %}
+
+                {% for report in project_reports %}
+                    <article class="project-report-card">
+
+                        <div class="project-report-header">
+                            <div>
+                                <h3>{{ report.project.title }}</h3>
+
+                                {% if report.project.description %}
+                                    <p>{{ report.project.description }}</p>
+                                {% endif %}
+                            </div>
+
+                            <a
+                                class="report-project-link"
+                                href="{% url 'project-detail' report.project.id %}">
+                                View Project
+                            </a>
+                        </div>
+
+                        <div class="project-progress-row">
+                            <div class="progress-bar">
+                                <div
+                                    class="progress-bar-fill"
+                                    style="width: {{ report.metrics.completion_rate }}%;">
+                                </div>
+                            </div>
+
+                            <strong>
+                                {{ report.metrics.completion_rate }}% complete
+                            </strong>
+                        </div>
+
+                        <div class="metrics-grid project-metrics-grid">
+                            <article class="metric-card">
+                                <span>Total</span>
+                                <strong>{{ report.metrics.total }}</strong>
+                            </article>
+
+                            <article class="metric-card metric-success">
+                                <span>Done</span>
+                                <strong>{{ report.metrics.done }}</strong>
+                            </article>
+
+                            <article class="metric-card metric-progress">
+                                <span>Doing</span>
+                                <strong>{{ report.metrics.doing }}</strong>
+                            </article>
+
+                            <article class="metric-card metric-warning">
+                                <span>To Do</span>
+                                <strong>{{ report.metrics.todo }}</strong>
+                            </article>
+
+                            <article class="metric-card metric-danger">
+                                <span>Overdue</span>
+                                <strong>{{ report.metrics.overdue }}</strong>
+                            </article>
+
+                            <article class="metric-card">
+                                <span>Unassigned</span>
+                                <strong>{{ report.unassigned_count }}</strong>
+                            </article>
+
+                            <article class="metric-card metric-success">
+                                <span>On-Time Rate</span>
+                                <strong>{{ report.metrics.on_time_rate }}%</strong>
+                            </article>
+
+                        </div>
+
+                        <div class="member-performance">
+                            <h4>Team Member Performance</h4>
+
+                            <div class="member-table-wrapper">
+                                <table class="member-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Member</th>
+                                            <th>Assigned</th>
+                                            <th>Done</th>
+                                            <th>Doing</th>
+                                            <th>Overdue</th>
+                                            <th>On Time</th>
+                                            <th>On-Time Rate</th>
+                                            <th>Completion</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        {% for member in report.member_reports %}
+                                            <tr>
+                                                <td>
+                                                    <div class="member-identity">
+                                                        <span class="member-avatar">
+                                                            {{ member.user.username|first|upper }}
+                                                        </span>
+
+                                                        <div>
+                                                            <strong>
+                                                                {{ member.user.username }}
+                                                            </strong>
+
+                                                            <small>
+                                                                {{ member.user.email }}
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+
+                                                <td>{{ member.total }}</td>
+                                                <td>{{ member.done }}</td>
+                                                <td>{{ member.doing }}</td>
+                                                <td>{{ member.overdue }}</td>
+                                                <td>{{ member.completed_on_time }}</td>
+                                                <td>{{ member.on_time_rate }}%</td>
+
+                                                <td>
+                                                    <div class="table-progress">
+                                                        <div class="table-progress-bar">
+                                                            <div
+                                                                class="table-progress-fill"
+                                                                style="width: {{ member.completion_rate }}%;">
+                                                            </div>
+                                                        </div>
+
+                                                        <span>
+                                                            {{ member.completion_rate }}%
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </article>
+                {% endfor %}
+
+            {% else %}
+                <div class="empty-report">
+                    <div class="empty-icon">▤</div>
+                    <h3>No owned projects yet</h3>
+                    <p>
+                        Create a project to view its overall progress and team performance.
+                    </p>
+                </div>
+            {% endif %}
+        </section>
+
+    </main>
+</div>
+{% endblock %}

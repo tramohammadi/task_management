@@ -34,7 +34,7 @@ urlpatterns = [
     path("tasks/<int:task_id>/edit-personal/", views.personal_task_edit, name="personal-task-edit"),
     path("tasks/<int:task_id>/delete-personal/", views.personal_task_delete, name="personal-task-delete"),
 
-    # Quick Status Update (Works for both personal and project tasks)
+    # Quick Status Update
     path("tasks/<int:task_id>/status/", views.task_update_status, name="task-update-status"),
 
     path("projects/<int:project_id>/ai/generate/", views.ai_generate_tasks, name="ai-generate-tasks",),
@@ -44,5 +44,7 @@ urlpatterns = [
     path("notifications/", views.notification_list, name="notification-list"),
     path("notifications/<int:notification_id>/read/", views.mark_notification_as_read, name="notification-mark-read"),
     path("notifications/mark-all-read/", views.mark_all_notifications_as_read, name="notification-mark-all-read"),
+
+    path("reports/", views.performance_report, name="performance-report",),
 ]
 

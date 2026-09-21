@@ -34,6 +34,11 @@
             {% endif %}
         </a>
 
+        <a href="{% url 'performance-report' %}"
+        class="nav-item {% if request.resolver_match.url_name == 'performance-report' %}active{% endif %}">
+            <span class="nav-icon">▤</span>
+            Performance Reports
+        </a>
 
     </nav>
 

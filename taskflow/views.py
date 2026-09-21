@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q, Case, When, Value, IntegerField
+from django.db.models import Q, Case, When, Value, IntegerField, Count, F
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -791,3 +791,317 @@ def mark_all_notifications_as_read(request):
     messages.success(request, "All notifications marked as read.")
     return redirect("notification-list")
 
+
+def get_report_period(request):
+    period = request.GET.get("period", "all")
+    now = timezone.now()
+
+    period_options = {
+        "all": {
+            "start_date": None,
+            "label": "All Time",
+        },
+        "7": {
+            "start_date": now - timedelta(days=7),
+            "label": "Last 7 Days",
+        },
+        "30": {
+            "start_date": now - timedelta(days=30),
+            "label": "Last 30 Days",
+        },
+        "month": {
+            "start_date": now.replace(
+                day=1,
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0,
+            ),
+            "label": "This Month",
+        },
+    }
+
+    # Prevent invalid query values.
+    if period not in period_options:
+        period = "all"
+
+    return (
+        period,
+        period_options[period]["start_date"],
+        period_options[period]["label"],
+    )
+
+
+def apply_period_filter(tasks, start_date):
+    if start_date:
+        return tasks.filter(created_at__gte=start_date)
+
+    return tasks
+
+
+def calculate_task_metrics(tasks, now):
+
+    metrics = tasks.aggregate(
+        total=Count("id"),
+
+        todo=Count(
+            "id",
+            filter=Q(status=Task.Status.TODO),
+        ),
+
+        doing=Count(
+            "id",
+            filter=Q(status=Task.Status.DOING),
+        ),
+
+        done=Count(
+            "id",
+            filter=Q(status=Task.Status.DONE),
+        ),
+
+        overdue=Count(
+            "id",
+            filter=(
+                Q(deadline__lt=now)
+                & ~Q(status=Task.Status.DONE)
+            ),
+        ),
+
+        completed_with_deadline=Count(
+            "id",
+            filter=(
+                Q(status=Task.Status.DONE)
+                & Q(deadline__isnull=False)
+                & Q(completed_at__isnull=False)
+            ),
+        ),
+
+        completed_on_time=Count(
+            "id",
+            filter=(
+                Q(status=Task.Status.DONE)
+                & Q(deadline__isnull=False)
+                & Q(completed_at__isnull=False)
+                & Q(completed_at__lte=F("deadline"))
+            ),
+        ),
+    )
+
+    total = metrics["total"] or 0
+    done = metrics["done"] or 0
+
+    completed_with_deadline = (
+        metrics["completed_with_deadline"] or 0
+    )
+
+    completed_on_time = metrics["completed_on_time"] or 0
+
+    # Percentage of all tasks that are completed.
+    metrics["completion_rate"] = (
+        round((done / total) * 100)
+        if total else 0
+    )
+
+    # Percentage of completed tasks that were done before their deadline.
+    metrics["on_time_rate"] = (
+        round(
+            (completed_on_time / completed_with_deadline) * 100
+        )
+        if completed_with_deadline else 0
+    )
+
+    return metrics
+
+@login_required
+def performance_report(request):
+    user = request.user
+    now = timezone.now()
+
+    report_period, start_date, report_period_label = get_report_period(
+        request
+    )
+
+    all_personal_tasks = Task.objects.filter(
+        personal_owner=user
+    )
+
+    personal_tasks = apply_period_filter(
+        all_personal_tasks,
+        start_date,
+    )
+
+    personal_metrics = calculate_task_metrics(
+        personal_tasks,
+        now,
+    )
+
+    due_soon_date = now + timedelta(days=3)
+
+    personal_metrics["due_soon"] = all_personal_tasks.filter(
+        deadline__gte=now,
+        deadline__lte=due_soon_date,
+    ).exclude(
+        status=Task.Status.DONE
+    ).count()
+
+    owned_projects = (
+        Project.objects.filter(owner=user)
+        .prefetch_related("memberships__user")
+        .order_by("-created_at")
+    )
+
+    project_reports = []
+
+    for project in owned_projects:
+        all_project_tasks = project.tasks.all()
+
+        project_tasks = apply_period_filter(
+            all_project_tasks,
+            start_date,
+        )
+
+        project_metrics = calculate_task_metrics(
+            project_tasks,
+            now,
+        )
+
+        unassigned_count = project_tasks.filter(
+            assigned_to__isnull=True
+        ).count()
+
+        project_people = {
+            project.owner_id: project.owner,
+        }
+
+        for membership in project.memberships.all():
+            project_people[membership.user_id] = membership.user
+
+        member_stats_queryset = (
+            project_tasks
+            .filter(assigned_to__isnull=False)
+            .values(
+                "assigned_to_id",
+                "assigned_to__username",
+                "assigned_to__email",
+            )
+            .annotate(
+                total=Count("id"),
+
+                todo=Count(
+                    "id",
+                    filter=Q(status=Task.Status.TODO),
+                ),
+
+                doing=Count(
+                    "id",
+                    filter=Q(status=Task.Status.DOING),
+                ),
+
+                done=Count(
+                    "id",
+                    filter=Q(status=Task.Status.DONE),
+                ),
+
+                overdue=Count(
+                    "id",
+                    filter=(
+                        Q(deadline__lt=now)
+                        & ~Q(status=Task.Status.DONE)
+                    ),
+                ),
+
+                completed_with_deadline=Count(
+                    "id",
+                    filter=(
+                        Q(status=Task.Status.DONE)
+                        & Q(deadline__isnull=False)
+                        & Q(completed_at__isnull=False)
+                    ),
+                ),
+
+                completed_on_time=Count(
+                    "id",
+                    filter=(
+                        Q(status=Task.Status.DONE)
+                        & Q(deadline__isnull=False)
+                        & Q(completed_at__isnull=False)
+                        & Q(completed_at__lte=F("deadline"))
+                    ),
+                ),
+            )
+        )
+
+        stats_by_user_id = {
+            item["assigned_to_id"]: item
+            for item in member_stats_queryset
+        }
+
+        member_reports = []
+
+        for person_id, person in project_people.items():
+            stats = stats_by_user_id.get(person_id, {})
+
+            total = stats.get("total", 0)
+            done = stats.get("done", 0)
+
+            completed_with_deadline = (
+                stats.get("completed_with_deadline", 0)
+            )
+
+            completed_on_time = (
+                stats.get("completed_on_time", 0)
+            )
+
+            member_reports.append({
+                "user": person,
+                "total": total,
+                "todo": stats.get("todo", 0),
+                "doing": stats.get("doing", 0),
+                "done": done,
+                "overdue": stats.get("overdue", 0),
+                "completed_on_time": completed_on_time,
+
+                "completion_rate": (
+                    round((done / total) * 100)
+                    if total else 0
+                ),
+
+                "on_time_rate": (
+                    round(
+                        (
+                            completed_on_time
+                            / completed_with_deadline
+                        ) * 100
+                    )
+                    if completed_with_deadline else 0
+                ),
+            })
+
+        member_reports.sort(
+            key=lambda member: (
+                member["completion_rate"],
+                member["on_time_rate"],
+            ),
+            reverse=True,
+        )
+
+        project_reports.append({
+            "project": project,
+            "metrics": project_metrics,
+            "unassigned_count": unassigned_count,
+            "member_reports": member_reports,
+        })
+
+    context = {
+        "personal_metrics": personal_metrics,
+        "project_reports": project_reports,
+
+        "report_period": report_period,
+        "report_period_label": report_period_label,
+    }
+
+    return render(
+        request,
+        "reports/performance_report.html",
+        context,
+    )
