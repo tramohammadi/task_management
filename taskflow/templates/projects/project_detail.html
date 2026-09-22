@@ -15,7 +15,7 @@
         
         {% if is_owner %}
             <div class="project-header-actions">
-                <a href="{% url 'project-edit' project.id %}" class="btn-action-outline">Edit</a>
+                <a href="{% url 'project-edit' project.id %}" class="btn-action-outline">Edit Project</a>
                 <a href="{% url 'project-delete' project.id %}" class="btn-action-danger">Delete</a>
             </div>
         {% endif %}
@@ -42,23 +42,39 @@
         <div class="hero-stats">
             <div class="stat-pill">
                 <span class="stat-num">{{ total_tasks }}</span>
-                <span class="stat-lbl">Tasks</span>
+                <span class="stat-lbl">Total Tasks</span>
             </div>
             <div class="stat-pill">
                 <span class="stat-num">{{ done_tasks }}</span>
                 <span class="stat-lbl">Completed</span>
             </div>
-            <div class="stat-pill">
-                <span class="stat-num">{{ memberships.count }}</span>
-                <span class="stat-lbl">Members</span>
+            <div class="stat-pill {% if overdue_tasks > 0 %}stat-pill-danger{% endif %}">
+                <span class="stat-num">{{ overdue_tasks }}</span>
+                <span class="stat-lbl">Overdue</span>
             </div>
+            <div class="stat-pill stat-pill-progress">
+                <span class="stat-num">{{ completion_rate }}%</span>
+                <span class="stat-lbl">Progress</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="project-overall-progress">
+        <div class="progress-bar-container">
+            <div class="progress-bar">
+                <div class="progress-bar-fill" style="width: {{ completion_rate }}%;"></div>
+            </div>
+            <span class="progress-text">{{ completion_rate }}% Completed</span>
         </div>
     </div>
 
     <!-- Tasks Section -->
     <div class="project-tasks-section">
         <div class="tasks-section-header">
-            <h3>Tasks</h3>
+            <div>
+                <h3>Tasks <span class="task-count-pill">{{ tasks|length }}</span></h3>
+                <p class="section-subtext">Filter and manage project assignments</p>
+            </div>
 
             <div class="tasks-header-actions">
                 <button
@@ -67,7 +83,7 @@
                     class="btn-ai-sm"
                     data-url="{% url 'ai-generate-tasks' project.id %}"
                 >
-                    ✨ Generate with AI
+                    ✨ AI Suggestions
                 </button>
 
                 <a
@@ -77,69 +93,161 @@
                     + Add Task
                 </a>
             </div>
-            <div id="ai-task-panel" class="ai-task-panel" style="display: none;">
-
-                <div class="ai-task-header">
-                    <div>
-                        <h4>✨ AI Task Suggestions</h4>
-                        <p>
-                            AI will suggest some initial tasks based on your project description.
-                        </p>
-                    </div>
-                </div>
-
-                <div id="ai-loading" class="ai-loading" style="display: none;">
-                    <span>Generating task suggestions...</span>
-                </div>
-
-                <div id="ai-error" class="ai-error" style="display: none;"></div>
-
-                <div id="ai-suggestions"></div>
-
-            </div>
         </div>
-        {% if tasks %}
-            <div class="clean-task-list">
-                {% for task in tasks %}
-                    <div class="task-row-item">
-                        <div class="task-info">
-                            <span class="task-dot status-{{ task.status|lower }}"></span>
-                            <span class="task-title-text">{{ task.title }}</span>
-                        </div>
-                        <div class="task-meta-tags">
-                            <span class="badge-status">{{ task.get_status_display|default:task.status }}</span>
-                            <span class="badge-priority">{{ task.get_priority_display|default:task.priority }}</span>
-                            {% if task.assigned_to %}
-                                <span class="badge-user">@{{ task.assigned_to.username }}</span>
-                            {% endif %}
 
-                            {% if is_manager or task.created_by == request.user %}
-                                <a href="{% url 'project-task-edit' project.id task.id %}" class="btn-text-sm">Edit</a>
-                            {% endif %}
-
-                            {% if is_manager or task.created_by == request.user %}
-                                <a href="{% url 'project-task-delete' project.id task.id %}"
-                                   class="btn-text-danger-sm"
-                                   onclick="return confirm('Delete task \'{{ task.title }}\'?');"
-                                   title="Delete">✕</a>
-                            {% endif %}
-                        </div>
-                    </div>
-                {% endfor %}
+        <!-- AI Panel -->
+        <div id="ai-task-panel" class="ai-task-panel" style="display: none;">
+            <div class="ai-task-header">
+                <div>
+                    <h4>✨ AI Task Suggestions</h4>
+                    <p>AI will suggest initial tasks based on your project description.</p>
+                </div>
             </div>
-        {% endif %}
+            <div id="ai-loading" class="ai-loading" style="display: none;">
+                <span>Generating task suggestions...</span>
+            </div>
+            <div id="ai-error" class="ai-error" style="display: none;"></div>
+            <div id="ai-suggestions"></div>
+        </div>
+
+        <form method="get" class="task-filter-bar">
+            <div class="search-box-wrapper">
+                <span class="search-icon">🔍</span>
+                <input
+                    type="text"
+                    name="q"
+                    placeholder="Search tasks..."
+                    value="{{ search_query }}"
+                    class="filter-input-search"
+                >
+            </div>
+
+            <div class="filter-dropdowns">
+                <select name="status" onchange="this.form.submit()" class="filter-select">
+                    <option value="">Status: All</option>
+                    <option value="TODO" {% if current_status == "TODO" %}selected{% endif %}>To Do</option>
+                    <option value="DOING" {% if current_status == "DOING" %}selected{% endif %}>In Progress</option>
+                    <option value="DONE" {% if current_status == "DONE" %}selected{% endif %}>Completed</option>
+                    <option value="overdue" {% if current_status == "overdue" %}selected{% endif %}>⚠️ Overdue</option>
+                </select>
+
+                <select name="priority" onchange="this.form.submit()" class="filter-select">
+                    <option value="">Priority: All</option>
+                    <option value="LOW" {% if current_priority == "LOW" %}selected{% endif %}>Low</option>
+                    <option value="MEDIUM" {% if current_priority == "MEDIUM" %}selected{% endif %}>Medium</option>
+                    <option value="HIGH" {% if current_priority == "HIGH" %}selected{% endif %}>High</option>
+                </select>
+
+                <select name="assigned" onchange="this.form.submit()" class="filter-select">
+                    <option value="">Assignee: All</option>
+                    <option value="me" {% if current_assigned == "me" %}selected{% endif %}>My Tasks</option>
+                    <option value="unassigned" {% if current_assigned == "unassigned" %}selected{% endif %}>Unassigned</option>
+                    {% for membership in memberships %}
+                        <option value="{{ membership.user.id }}" {% if current_assigned == membership.user.id|stringformat:"s" %}selected{% endif %}>
+                            {{ membership.user.username }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                {% if current_status or current_priority or current_assigned or search_query %}
+                    <a href="{% url 'project-detail' project.id %}" class="btn-clear-filters" title="Reset filters">✕ Reset</a>
+                {% endif %}
+            </div>
+        </form>
+
+        <div class="tasks-scroll-container">
+            {% if tasks %}
+                <div class="clean-task-list">
+                    {% for task in tasks %}
+                        <div class="task-row-card {% if task.status == 'DONE' %}task-completed-card{% endif %}">
+                            
+                            <div class="task-col-left">
+                                <span class="status-indicator status-{{ task.status|lower }}"></span>
+                                <div class="task-text-group">
+                                    <div class="task-title-line">
+                                        <span class="task-title-text">{{ task.title }}</span>
+                                        {% if task.deadline and task.status != 'DONE' and task.deadline < now %}
+                                            <span class="badge-overdue-tag">Overdue</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="task-meta-line">
+                                        {% if task.deadline %}
+                                            <span class="meta-deadline {% if task.deadline < now and task.status != 'DONE' %}deadline-overdue{% endif %}">
+                                                📅 {{ task.deadline|date:"M d, H:i" }}
+                                            </span>
+                                            <span class="meta-dot">•</span>
+                                        {% endif %}
+                                        <span class="meta-creator">by {{ task.created_by.username|default:"System" }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="task-col-right">
+                                <div class="task-badges">
+                                    <span class="badge-status badge-status-{{ task.status|lower }}">
+                                        {{ task.get_status_display|default:task.status }}
+                                    </span>
+                                    
+                                    <span class="badge-priority badge-priority-{{ task.priority|lower }}">
+                                        {{ task.get_priority_display|default:task.priority }}
+                                    </span>
+
+                                    {% if task.assigned_to %}
+                                        <span class="badge-user" title="Assigned to {{ task.assigned_to.username }}">
+                                            👤 {{ task.assigned_to.username }}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge-unassigned">Unassigned</span>
+                                    {% endif %}
+                                </div>
+
+                                <div class="task-action-btns">
+                                    {% if is_manager or task.created_by == request.user or task.assigned_to == request.user %}
+                                        <a href="{% url 'project-task-edit' project.id task.id %}" class="btn-action-icon" title="Edit Task">
+                                            ✎
+                                        </a>
+                                    {% endif %}
+
+                                    {% if is_manager or task.created_by == request.user %}
+                                        <a href="{% url 'project-task-delete' project.id task.id %}"
+                                           class="btn-action-icon btn-action-delete"
+                                           onclick="return confirm('Delete task \'{{ task.title }}\'?');"
+                                           title="Delete Task">✕</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-tasks-box">
+                    <div class="empty-tasks-icon">📋</div>
+                    {% if current_status or current_priority or current_assigned or search_query %}
+                        <p>No tasks matched your active filters.</p>
+                        <a href="{% url 'project-detail' project.id %}" class="btn-primary-sm" style="margin-top: 8px; display: inline-block;">Clear Filters</a>
+                    {% else %}
+                        <p>No tasks created in this project yet.</p>
+                        <a href="{% url 'project-task-create' project.id %}" class="btn-primary-sm" style="margin-top: 8px; display: inline-block;">+ Create First Task</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
     </div>
 
-    <!-- Team Members Section -->
+
     <div class="project-tasks-section" style="margin-top: 24px;">
         <div class="tasks-section-header">
-            <h3>Project Members</h3>
+            <div>
+                <h3>Project Members <span class="task-count-pill">{{ memberships.count|add:1 }}</span></h3>
+                <p class="section-subtext">Manage team roles and collaborator access</p>
+            </div>
         </div>
 
         {% if is_manager and add_member_form %}
-            <form method="post" action="{% url 'project-add-member' project.id %}" class="add-member-inline-form">
+            <form method="post" action="{% url 'project-add-member' project.id %}" class="task-filter-bar" style="margin-bottom: 14px;">
                 {% csrf_token %}
-                <div class="form-row-inline">
+                <div style="display: flex; gap: 8px; width: 100%; flex-wrap: wrap;">
                     {{ add_member_form.email }}
                     {{ add_member_form.role }}
                     <button type="submit" class="btn-primary-sm">+ Add Member</button>
@@ -147,51 +255,64 @@
             </form>
         {% endif %}
 
-        <div class="clean-task-list" style="margin-top: 14px;">
-            {% for membership in memberships %}
-                <div class="task-row-item">
-                    <div class="task-info">
-                        <div class="user-avatar-sm">
-                            {{ membership.user.username|first|upper }}
-                        </div>
-                        <div>
-                            <strong>{{ membership.user.username }}</strong>
-                            <span class="member-email-sub">({{ membership.user.email }})</span>
-                        </div>
+        <div class="clean-task-list">
+            <div class="task-row-card">
+                <div class="task-col-left">
+                    <div class="user-avatar-sm avatar-owner">
+                        {{ project.owner.username|first|upper }}
                     </div>
+                    <div class="task-text-group">
+                        <span class="task-title-text">{{ project.owner.username }}</span>
+                        <span class="task-meta-line">{{ project.owner.email }}</span>
+                    </div>
+                </div>
+                <div class="task-col-right">
+                    <span class="badge-priority badge-priority-high">Owner</span>
+                </div>
+            </div>
 
-                    <div class="task-meta-tags" style="align-items: center;">
-                        {% if is_owner and membership.user != project.owner %}
-                            <!-- Owner can change roles -->
-                            <form method="post" action="{% url 'project-update-member-role' project.id membership.id %}" style="display:inline-flex; align-items: center; gap: 4px;">
-                                {% csrf_token %}
-                                <select name="role" class="form-select-sm" onchange="this.form.submit()">
-                                    <option value="MEMBER" {% if membership.role == "MEMBER" %}selected{% endif %}>Member</option>
-                                    <option value="MANAGER" {% if membership.role == "MANAGER" %}selected{% endif %}>Manager</option>
-                                </select>
-                            </form>
-                        {% else %}
-                            <span class="project-role {% if membership.role == 'OWNER' %}owner-role{% else %}member-role{% endif %}">
-                                {{ membership.get_role_display }}
-                            </span>
-                        {% endif %}
+            {% for membership in memberships %}
+                {% if membership.user != project.owner %}
+                    <div class="task-row-card">
+                        <div class="task-col-left">
+                            <div class="user-avatar-sm">
+                                {{ membership.user.username|first|upper }}
+                            </div>
+                            <div class="task-text-group">
+                                <span class="task-title-text">{{ membership.user.username }}</span>
+                                <span class="task-meta-line">{{ membership.user.email }}</span>
+                            </div>
+                        </div>
 
-                        <!-- Remove / Leave Action -->
-                        {% if membership.user != project.owner %}
+                        <div class="task-col-right">
+                            {% if is_owner %}
+                                <form method="post" action="{% url 'project-update-member-role' project.id membership.id %}" style="display:inline-flex; align-items: center; gap: 6px;">
+                                    {% csrf_token %}
+                                    <select name="role" class="filter-select" onchange="this.form.submit()">
+                                        <option value="MEMBER" {% if membership.role == "MEMBER" %}selected{% endif %}>Member</option>
+                                        <option value="MANAGER" {% if membership.role == "MANAGER" %}selected{% endif %}>Manager</option>
+                                    </select>
+                                </form>
+                            {% else %}
+                                <span class="badge-status badge-status-doing">
+                                    {{ membership.get_role_display }}
+                                </span>
+                            {% endif %}
+
                             {% if is_manager or membership.user == request.user %}
                                 <form method="post" 
                                     action="{% url 'project-remove-member' project.id membership.id %}" 
                                     onsubmit="return confirm('{% if membership.user == request.user %}Are you sure you want to leave this project?{% else %}Are you sure you want to remove {{ membership.user.username }} from this project?{% endif %}');" 
                                     style="display:inline;">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn-text-danger">
+                                    <button type="submit" class="btn-clear-filters" style="border: none; cursor: pointer;">
                                         {% if membership.user == request.user %}Leave{% else %}Remove{% endif %}
                                     </button>
                                 </form>
                             {% endif %}
-                        {% endif %}
+                        </div>
                     </div>
-                </div>
+                {% endif %}
             {% endfor %}
         </div>
     </div>
@@ -200,7 +321,6 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-
     const generateButton = document.getElementById("ai-generate-btn");
     const panel = document.getElementById("ai-task-panel");
     const loading = document.getElementById("ai-loading");
@@ -209,168 +329,91 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function getCookie(name) {
         let cookieValue = null;
-
         if (document.cookie && document.cookie !== "") {
             const cookies = document.cookie.split(";");
-
             for (let cookie of cookies) {
                 cookie = cookie.trim();
-
                 if (cookie.startsWith(name + "=")) {
-                    cookieValue = decodeURIComponent(
-                        cookie.substring(name.length + 1)
-                    );
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                     break;
                 }
             }
         }
-
         return cookieValue;
     }
-    generateButton.addEventListener("click", async function () {
 
-        panel.style.display = "block";
-        loading.style.display = "block";
-        errorBox.style.display = "none";
-        suggestionsBox.innerHTML = "";
+    if (generateButton) {
+        generateButton.addEventListener("click", async function () {
+            panel.style.display = "block";
+            loading.style.display = "block";
+            errorBox.style.display = "none";
+            suggestionsBox.innerHTML = "";
 
-        generateButton.disabled = true;
-        generateButton.textContent = "✨ Generating...";
+            generateButton.disabled = true;
+            generateButton.textContent = "✨ Generating...";
 
-        const csrfToken = getCookie("csrftoken");
+            const csrfToken = getCookie("csrftoken");
 
-        try {
-
-            const response = await fetch(
-                generateButton.dataset.url,
-                {
+            try {
+                const response = await fetch(generateButton.dataset.url, {
                     method: "POST",
                     headers: {
                         "X-CSRFToken": csrfToken,
                         "Content-Type": "application/json"
                     }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || "Something went wrong.");
                 }
-            );
 
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                throw new Error(
-                    data.error || "Something went wrong."
-                );
+                displaySuggestions(data.suggestions);
+            } catch (error) {
+                errorBox.textContent = error.message;
+                errorBox.style.display = "block";
+            } finally {
+                loading.style.display = "none";
+                generateButton.disabled = false;
+                generateButton.textContent = "✨ AI Suggestions";
             }
-
-            displaySuggestions(data.suggestions);
-
-        } catch (error) {
-
-            errorBox.textContent = error.message;
-            errorBox.style.display = "block";
-
-        } finally {
-
-            loading.style.display = "none";
-            generateButton.disabled = false;
-            generateButton.textContent = "✨ Generate with AI";
-        }
-    });
-
+        });
+    }
 
     function displaySuggestions(suggestions) {
-
-        if (!suggestions.length) {
-            suggestionsBox.innerHTML = `
-                <p>No task suggestions were generated.</p>
-            `;
+        if (!suggestions || !suggestions.length) {
+            suggestionsBox.innerHTML = `<p>No task suggestions were generated.</p>`;
             return;
         }
 
-        let html = `
-            <div class="ai-suggestions-list">
-        `;
-
+        let html = `<div class="ai-suggestions-list">`;
         suggestions.forEach(function (task, index) {
-
             html += `
                 <label class="ai-suggestion-card">
-
-                    <input
-                        type="checkbox"
-                        class="ai-task-checkbox"
-                        value="${index}"
-                        checked
-                    >
-
+                    <input type="checkbox" class="ai-task-checkbox" value="${index}" checked>
                     <div class="ai-suggestion-content">
-
-                        <div class="ai-suggestion-title">
-                            ${escapeHtml(task.title)}
-                        </div>
-
-                        <div class="ai-suggestion-description">
-                            ${escapeHtml(task.description)}
-                        </div>
-
-                        <span class="ai-priority priority-${task.priority.toLowerCase()}">
-                            ${escapeHtml(task.priority)}
-                        </span>
-
+                        <div class="ai-suggestion-title">${escapeHtml(task.title)}</div>
+                        <div class="ai-suggestion-description">${escapeHtml(task.description || "")}</div>
+                        <span class="ai-priority priority-${task.priority.toLowerCase()}">${escapeHtml(task.priority)}</span>
                     </div>
-
                 </label>
             `;
         });
-
-        html += `
-            </div>
-
-            <button
-                type="button"
-                id="ai-add-selected"
-                class="btn-primary-sm"
-            >
+        html += `</div>
+            <button type="button" id="ai-add-selected" class="btn-primary-sm" style="margin-top:12px;">
                 Add Selected Tasks
             </button>
         `;
 
         suggestionsBox.innerHTML = html;
-
-        document
-            .getElementById("ai-add-selected")
-            .addEventListener("click", addSelectedTasks);
     }
 
-
     function escapeHtml(value) {
-
         const div = document.createElement("div");
         div.textContent = value;
         return div.innerHTML;
     }
-
-
-    async function addSelectedTasks() {
-
-        const selected = [];
-
-        document
-            .querySelectorAll(".ai-task-checkbox:checked")
-            .forEach(function (checkbox) {
-                selected.push(
-                    parseInt(checkbox.value)
-                );
-            });
-
-        if (!selected.length) {
-            alert("Please select at least one task.");
-            return;
-        }
-
-        alert(
-            "The task creation endpoint will be connected in the next step."
-        );
-    }
-
 });
 </script>
 {% endblock %}

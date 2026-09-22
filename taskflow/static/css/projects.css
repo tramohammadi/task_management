@@ -1,7 +1,3 @@
-/* =========================================================
-   Projects List View
-   ========================================================= */
-
 .projects-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -114,10 +110,6 @@
 }
 
 
-/* =========================================================
-   Project Form Layout (Create / Edit Pages)
-   ========================================================= */
-
 .simple-page-layout {
     width: min(640px, 100%);
     margin: 40px auto;
@@ -205,10 +197,6 @@
 }
 
 
-/* =========================================================
-   Responsive Adjustments
-   ========================================================= */
-
 @media (max-width: 650px) {
     .projects-grid {
         grid-template-columns: 1fr;
@@ -230,7 +218,6 @@
 }
 
 
-/* Page Layout */
 .page-container, .project-view-container {
     width: min(1050px, 100%);
     margin: 30px auto;
@@ -256,7 +243,6 @@
     font-size: 14px;
 }
 
-/* Secondary Button Small */
 .secondary-button-sm {
     font-size: 13px;
     font-weight: 600;
@@ -272,9 +258,6 @@
     background: #e2eae6;
 }
 
-/* =========================================================
-   Container & General Layout
-   ========================================================= */
 .project-view-container,
 .delete-page-container,
 .simple-page-layout {
@@ -287,9 +270,7 @@
     font-style: italic;
 }
 
-/* =========================================================
-   Top Navigation Bar & Action Buttons
-   ========================================================= */
+
 .project-nav-bar {
     display: flex;
     justify-content: space-between;
@@ -349,9 +330,7 @@
     border-color: #f87171;
 }
 
-/* =========================================================
-   Project Hero Card (Summary Header)
-   ========================================================= */
+
 .project-hero-card {
     background: #ffffff;
     border: 1px solid #e5e7eb;
@@ -436,9 +415,6 @@
     letter-spacing: 0.5px;
 }
 
-/* =========================================================
-   Tasks Section (Fixed Header & Button stretch bug)
-   ========================================================= */
 .project-tasks-section {
     background: #ffffff;
     border: 1px solid #e5e7eb;
@@ -535,9 +511,7 @@
     font-size: 14px;
 }
 
-/* =========================================================
-   Delete Confirmation Card
-   ========================================================= */
+
 .delete-page-container {
     max-width: 480px;
 }
@@ -881,4 +855,318 @@
     margin-top: 4px;
 }
 
-  
+
+
+.project-tasks-section {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.tasks-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.tasks-section-header h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.task-count-pill {
+    font-size: 0.75rem;
+    background: #f3f4f6;
+    color: #4b5563;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.section-subtext {
+    margin: 3px 0 0;
+    font-size: 0.8rem;
+    color: #6b7280;
+}
+
+.task-filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 8px 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.search-box-wrapper {
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 7px;
+    padding: 0 10px;
+    flex: 1;
+    min-width: 200px;
+}
+
+.search-icon {
+    font-size: 0.8rem;
+    color: #9ca3af;
+    margin-right: 6px;
+}
+
+.filter-input-search {
+    border: none;
+    outline: none;
+    padding: 7px 0;
+    font-size: 0.84rem;
+    width: 100%;
+    color: #1f2937;
+    background: transparent;
+}
+
+.filter-dropdowns {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.filter-select {
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #374151;
+    padding: 6px 10px;
+    font-size: 0.82rem;
+    border-radius: 7px;
+    cursor: pointer;
+    outline: none;
+}
+
+.filter-select:focus {
+    border-color: #3b7a57;
+}
+
+.btn-clear-filters {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #ef4444;
+    text-decoration: none;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: #fee2e2;
+    transition: background 0.15s;
+}
+
+.btn-clear-filters:hover {
+    background: #fecaca;
+}
+
+.tasks-scroll-container {
+    max-height: 520px; 
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.tasks-scroll-container::-webkit-scrollbar {
+    width: 6px;
+}
+.tasks-scroll-container::-webkit-scrollbar-thumb {
+    background: #e5e7eb;
+    border-radius: 8px;
+}
+
+.clean-task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.task-row-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid #edf0f2;
+    border-radius: 10px;
+    padding: 10px 14px;
+    transition: all 0.15s ease;
+}
+
+.task-row-card:hover {
+    border-color: #d1d5db;
+    background: #fafbfc;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+}
+
+.task-completed-card {
+    background: #fcfcfc;
+    opacity: 0.72;
+}
+
+.task-completed-card .task-title-text {
+    text-decoration: line-through;
+    color: #6b7280;
+}
+
+.task-col-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    flex: 1;
+}
+
+.status-indicator {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.status-todo { background: #eab308; }
+.status-doing { background: #3b82f6; }
+.status-done { background: #10b981; }
+
+.task-text-group {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.task-title-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.task-title-text {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.badge-overdue-tag {
+    background: #fee2e2;
+    color: #dc2626;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+
+.task-meta-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+.meta-deadline.deadline-overdue {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+
+.task-col-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.task-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.badge-status, .badge-priority, .badge-user, .badge-unassigned {
+    font-size: 0.72rem;
+    padding: 3px 7px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.badge-status-todo { background: #fef9c3; color: #854d0e; }
+.badge-status-doing { background: #dbeafe; color: #1e40af; }
+.badge-status-done { background: #d1fae5; color: #065f46; }
+
+.badge-priority-low { background: #f3f4f6; color: #4b5563; }
+.badge-priority-medium { background: #fff7ed; color: #c2410c; }
+.badge-priority-high { background: #fee2e2; color: #b91c1c; }
+
+.badge-user {
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.badge-unassigned {
+    background: #f3f4f6;
+    color: #9ca3af;
+}
+
+.task-action-btns {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-action-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #6b7280;
+    transition: all 0.15s;
+}
+
+.btn-action-icon:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.btn-action-delete:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.empty-tasks-box {
+    text-align: center;
+    padding: 38px 20px;
+    border-radius: 12px;
+    border: 1px dashed #e5e7eb;
+    background: #fafafa;
+    color: #6b7280;
+    font-size: 0.88rem;
+}
+
+.empty-tasks-icon {
+    font-size: 1.8rem;
+    margin-bottom: 6px;
+}

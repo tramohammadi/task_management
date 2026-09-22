@@ -157,7 +157,7 @@ def project_detail(request, project_id):
         project=project, user=request.user
     ).first()
 
-    is_owner = project.owner == request.user
+    is_owner = (project.owner == request.user)
 
     if not is_owner and not user_membership:
         raise PermissionDenied("You do not have permission to view this project.")
@@ -167,26 +167,66 @@ def project_detail(request, project_id):
         and user_membership.role == ProjectMembership.Role.MANAGER
     )
 
-    project_tasks = (
-        project.tasks.all()
-        .select_related("assigned_to")
-        .order_by("-created_at")
-    )
-    memberships = project.memberships.select_related("user").order_by(
-        "joined_at"
-    )
+    now = timezone.now()
 
+    all_project_tasks = project.tasks.all().select_related("assigned_to", "created_by")
+    
+    total_tasks = all_project_tasks.count()
+    done_tasks = all_project_tasks.filter(status=Task.Status.DONE).count()
+    overdue_tasks = all_project_tasks.filter(
+        deadline__lt=now
+    ).exclude(status=Task.Status.DONE).count()
+    
+    completion_rate = round((done_tasks / total_tasks) * 100) if total_tasks > 0 else 0
+
+    tasks = all_project_tasks.order_by("-created_at")
+
+    status_filter = request.GET.get("status", "")
+    priority_filter = request.GET.get("priority", "")
+    assigned_filter = request.GET.get("assigned", "")
+    search_query = request.GET.get("q", "").strip()
+
+    if status_filter:
+        if status_filter == "overdue":
+            tasks = tasks.filter(deadline__lt=now).exclude(status=Task.Status.DONE)
+        else:
+            tasks = tasks.filter(status=status_filter)
+
+    if priority_filter:
+        tasks = tasks.filter(priority=priority_filter)
+
+    if assigned_filter:
+        if assigned_filter == "me":
+            tasks = tasks.filter(assigned_to=request.user)
+        elif assigned_filter == "unassigned":
+            tasks = tasks.filter(assigned_to__isnull=True)
+        else:
+            tasks = tasks.filter(assigned_to_id=assigned_filter)
+
+    if search_query:
+        tasks = tasks.filter(
+            Q(title__icontains=search_query) | Q(description__icontains=search_query)
+        )
+
+    memberships = project.memberships.select_related("user").order_by("joined_at")
     add_member_form = AddMemberForm(project=project) if is_manager else None
 
     context = {
         "project": project,
-        "tasks": project_tasks,
+        "tasks": tasks,
         "memberships": memberships,
         "is_owner": is_owner,
         "is_manager": is_manager,
         "add_member_form": add_member_form,
-        "total_tasks": project_tasks.count(),
-        "done_tasks": project_tasks.filter(status=Task.Status.DONE).count(),
+        "total_tasks": total_tasks,
+        "done_tasks": done_tasks,
+        "overdue_tasks": overdue_tasks,
+        "completion_rate": completion_rate,
+        "current_status": status_filter,
+        "current_priority": priority_filter,
+        "current_assigned": assigned_filter,
+        "search_query": search_query,
+        "now": now,
     }
     return render(request, "projects/project_detail.html", context)
 
@@ -385,7 +425,6 @@ def project_task_create(request, project_id):
 
     return render(request, "tasks/task_form.html", context)
 
-
 @login_required
 def project_task_edit(request, project_id, task_id):
     project = get_object_or_404(Project, id=project_id)
@@ -402,7 +441,7 @@ def project_task_edit(request, project_id, task_id):
 
     if request.method == "POST":
         form = ProjectTaskForm(
-            request.POST, instance=task, project=project, is_manager=is_manager
+            request.POST, instance=task, project=project, role=role
         )
         old_assigned_to = task.assigned_to
         old_priority = task.priority
@@ -432,8 +471,9 @@ def project_task_edit(request, project_id, task_id):
         initial_data = {}
         if task.deadline:
             initial_data["deadline"] = task.deadline.strftime("%Y-%m-%dT%H:%M")
+            
         form = ProjectTaskForm(
-            instance=task, project=project, is_manager=is_manager, initial=initial_data
+            instance=task, project=project, role=role, initial=initial_data
         )
 
     context = {
