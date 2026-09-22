@@ -211,7 +211,6 @@
                                     {% if is_manager or task.created_by == request.user %}
                                         <a href="{% url 'project-task-delete' project.id task.id %}"
                                            class="btn-action-icon btn-action-delete"
-                                           onclick="return confirm('Delete task \'{{ task.title }}\'?');"
                                            title="Delete Task">✕</a>
                                     {% endif %}
                                 </div>
