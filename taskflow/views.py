@@ -330,7 +330,7 @@ def project_task_create(request, project_id):
     if not role:
         raise PermissionDenied("You are not a member of this project.")
 
-    is_manager = role in [
+    is_privileged = role in [
         ProjectMembership.Role.OWNER,
         ProjectMembership.Role.MANAGER,
     ]
@@ -339,7 +339,7 @@ def project_task_create(request, project_id):
         form = ProjectTaskForm(
             request.POST,
             project=project,
-            is_manager=is_manager,
+            role=role,
         )
 
         if form.is_valid():
@@ -347,7 +347,7 @@ def project_task_create(request, project_id):
             task.project = project
             task.created_by = request.user
 
-            if not is_manager:
+            if not is_privileged:
                 task.assigned_to = request.user
 
             task.save()
@@ -371,7 +371,7 @@ def project_task_create(request, project_id):
     else:
         form = ProjectTaskForm(
             project=project,
-            is_manager=is_manager,
+            role=role,
         )
 
     context = {

@@ -176,7 +176,7 @@ class ProjectTaskForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         project = kwargs.pop("project", None)
-        is_manager = kwargs.pop("is_manager", True)
+        user_role = kwargs.pop("role", None)
         super().__init__(*args, **kwargs)
 
         if project:
@@ -187,14 +187,28 @@ class ProjectTaskForm(forms.ModelForm):
                 project=project
             ).values_list("user_id", flat=True)
 
-            self.fields["assigned_to"].queryset = User.objects.filter(
-                Q(id__in=member_user_ids) | Q(id=project.owner_id)
-            ).distinct()
+            if user_role == ProjectMembership.Role.OWNER:
+                users_qs = User.objects.filter(
+                    Q(id__in=member_user_ids) | Q(id=project.owner_id)
+                ).distinct()
+            elif user_role == ProjectMembership.Role.MANAGER:
+
+                users_qs = User.objects.filter(
+                    id__in=member_user_ids
+                ).exclude(id=project.owner_id).distinct()
+            else:
+                users_qs = User.objects.none()
+
+            self.fields["assigned_to"].queryset = users_qs
             self.fields["assigned_to"].empty_label = "Unassigned"
 
-        # Members cannot choose who to assign — hide the field entirely
-        if not is_manager:
-            self.fields.pop("assigned_to")
+        is_privileged = user_role in [
+            ProjectMembership.Role.OWNER,
+            ProjectMembership.Role.MANAGER,
+        ]
+        if not is_privileged:
+            self.fields.pop("assigned_to", None)
+
 
 
 class PersonalTaskForm(forms.ModelForm):
