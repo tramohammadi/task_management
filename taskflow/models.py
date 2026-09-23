@@ -15,7 +15,7 @@ class User(AbstractUser):
 
 
 class Project(models.Model):
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=50)
     description = models.TextField(blank=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="owned_projects")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -60,7 +60,7 @@ class Task(models.Model):
         MEDIUM = "MEDIUM", "Medium"
         HIGH = "HIGH", "High"
 
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=50)
     description = models.TextField(blank=True)
     deadline = models.DateTimeField(null=True, blank=True, db_index=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.TODO, db_index=True)

@@ -3,9 +3,9 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import get_user_model
 from .models import Project, ProjectMembership, Task
 from django.db.models import Q
+from django.core.validators import RegexValidator
 
 User = get_user_model()
-
 
 class RegisterForm(UserCreationForm):
     email = forms.EmailField(
@@ -20,10 +20,20 @@ class RegisterForm(UserCreationForm):
 
     username = forms.CharField(
         label="Username",
+        min_length=2,
+        max_length=30,
+        validators=[
+            RegexValidator(
+                regex=r'^[a-zA-Z0-9_.]+$',
+                message="Username can only contain English letters, numbers, underscores, and dots.",
+                code='invalid_username'
+            ),
+        ],
         widget=forms.TextInput(
             attrs={
-                "placeholder": "Choose a username",
+                "placeholder": "Choose a username (2-30 characters)",
                 "autocomplete": "username",
+                "maxlength": "30",
             }
         ),
     )
@@ -82,6 +92,7 @@ class ProjectForm(forms.ModelForm):
                 attrs={
                     "class": "form-input",
                     "placeholder": "For example: Software Engineering Project",
+                    "maxlength": "50",
                 }
             ),
 
@@ -90,10 +101,10 @@ class ProjectForm(forms.ModelForm):
                     "class": "form-input form-textarea",
                     "placeholder": "Describe the goal of this project...",
                     "rows": 5,
+                    "maxlength": "1000",
                 }
             ),
         }
-
 
 class AddMemberForm(forms.Form):
     email = forms.EmailField(
