@@ -47,16 +47,21 @@
                                 {{ project.title|first|upper }}
                             </div>
 
-                            {% if project.owner == request.user %}
+                            {% if project.owner == request.user or project.user_membership_role == "OWNER" %}
                                 <span class="project-role owner-role">
                                     Owner
                                 </span>
-                            {%else %}
+                            {% elif project.user_membership_role == "MANAGER" %}
+                                <span class="project-role manager-role">
+                                    Manager
+                                </span>
+                            {% else %}
                                 <span class="project-role member-role">
                                     Member
                                 </span>
                             {% endif %}
                         </div>
+
 
                         <h2>{{ project.title }}</h2>
 

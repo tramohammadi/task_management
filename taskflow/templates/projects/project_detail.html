@@ -202,7 +202,8 @@
                                 </div>
 
                                 <div class="task-action-btns">
-                                    {% if is_manager or task.created_by == request.user or task.assigned_to == request.user %}
+                                    {# فقط مدیر/مالک یا خود سازنده تسک دکمه ادیت را می‌بینند #}
+                                    {% if is_manager or task.created_by == request.user %}
                                         <a href="{% url 'project-task-edit' project.id task.id %}" class="btn-action-icon" title="Edit Task">
                                             ✎
                                         </a>
@@ -210,10 +211,11 @@
 
                                     {% if is_manager or task.created_by == request.user %}
                                         <a href="{% url 'project-task-delete' project.id task.id %}"
-                                           class="btn-action-icon btn-action-delete"
-                                           title="Delete Task">✕</a>
+                                        class="btn-action-icon btn-action-delete"
+                                        title="Delete Task">✕</a>
                                     {% endif %}
                                 </div>
+
                             </div>
 
                         </div>

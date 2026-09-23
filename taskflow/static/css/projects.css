@@ -1170,3 +1170,9 @@
     font-size: 1.8rem;
     margin-bottom: 6px;
 }
+
+.project-role.manager-role {
+    background-color: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}

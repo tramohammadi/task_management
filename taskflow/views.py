@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q, Case, When, Value, IntegerField, Count, F
+from django.db.models import Q, Case, When, Value, IntegerField, Count, F, OuterRef, Subquery
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -108,16 +108,28 @@ def dashboard(request):
 def project_list(request):
     check_and_create_deadline_notifications(request.user)
 
-    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+    unread_count = Notification.objects.filter(
+        user=request.user, is_read=False
+    ).count()
     if unread_count > 0:
-        messages.info(request, f"You have {unread_count} unread notification(s).",
-            extra_tags="persistent-notif"
+        messages.info(
+            request,
+            f"You have {unread_count} unread notification(s).",
+            extra_tags="persistent-notif",
         )
+
+    user_role_subquery = ProjectMembership.objects.filter(
+        project=OuterRef("pk"), user=request.user
+    ).values("role")[:1]
+
     projects = (
         Project.objects.filter(
             Q(owner=request.user) | Q(memberships__user=request.user)
         )
         .select_related("owner")
+        .annotate(
+            user_membership_role=Subquery(user_role_subquery)
+        )
         .distinct()
         .order_by("-created_at")
     )
