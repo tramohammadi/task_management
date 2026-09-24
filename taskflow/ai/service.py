@@ -1,5 +1,5 @@
 import json
-
+import re
 from django.conf import settings
 
 
@@ -19,18 +19,12 @@ Rules:
 - Do not create duplicate tasks.
 - Keep task titles short and clear.
 - Give each task a useful description.
-- Priority must be exactly one of:
-  LOW, MEDIUM, HIGH
+- Priority must be exactly one of: LOW, MEDIUM, HIGH
 - Do not generate deadlines.
-- Return ONLY valid JSON.
-- Return a JSON array.
-- Each object must contain exactly these fields:
-  title
-  description
-  priority
+- Return ONLY valid JSON array. Do not include markdown formatting or backticks.
+- Each object must contain exactly these fields: title, description, priority
 
 Example:
-
 [
     {{
         "title": "Design the database",
@@ -47,39 +41,33 @@ Example:
 
 
 def clean_suggestions(raw_text):
-    try:
-        suggestions = json.loads(raw_text)
+    if not raw_text:
+        raise ValueError("AI response was empty.")
 
+    cleaned_text = raw_text.strip()
+    if cleaned_text.startswith("```"):
+        cleaned_text = re.sub(r"^```(?:json)?\s*", "", cleaned_text)
+        cleaned_text = re.sub(r"\s*```$", "", cleaned_text)
+    cleaned_text = cleaned_text.strip()
+
+    try:
+        suggestions = json.loads(cleaned_text)
     except json.JSONDecodeError:
-        raise ValueError("AI returned invalid JSON.")
+        raise ValueError(f"AI returned invalid JSON: {raw_text[:100]}")
 
     if not isinstance(suggestions, list):
         raise ValueError("AI response must be a list.")
 
-    valid_priorities = {
-        "LOW",
-        "MEDIUM",
-        "HIGH",
-    }
-
+    valid_priorities = {"LOW", "MEDIUM", "HIGH"}
     cleaned_suggestions = []
 
     for item in suggestions:
-
         if not isinstance(item, dict):
             continue
 
-        title = str(
-            item.get("title", "")
-        ).strip()
-
-        description = str(
-            item.get("description", "")
-        ).strip()
-
-        priority = str(
-            item.get("priority", "MEDIUM")
-        ).upper().strip()
+        title = str(item.get("title", "")).strip()
+        description = str(item.get("description", "")).strip()
+        priority = str(item.get("priority", "MEDIUM")).upper().strip()
 
         if not title:
             continue
@@ -96,84 +84,87 @@ def clean_suggestions(raw_text):
     return cleaned_suggestions[:7]
 
 
-# OpenAI
-def generate_with_openai(project_description):
-
+# AvalAI
+def generate_with_avalai(project_description):
     from openai import OpenAI
 
-    if not settings.OPENAI_API_KEY:
-        raise ValueError(
-            "OPENAI_API_KEY is not configured."
-        )
+    api_key = getattr(settings, "AVALAI_API_KEY", None)
+    if not api_key:
+        raise ValueError("AVALAI_API_KEY is not configured.")
 
     client = OpenAI(
-        api_key=settings.OPENAI_API_KEY
+        api_key=api_key,
+        base_url="https://api.avalai.ir/v1"
     )
 
-    prompt = build_task_prompt(
-        project_description
+    prompt = build_task_prompt(project_description)
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a helpful software project management assistant that outputs only raw JSON.",
+            },
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.3,
     )
 
-    response = client.responses.create(
-        model="gpt-5",
-        input=prompt,
+    content = response.choices[0].message.content
+    return clean_suggestions(content)
+
+
+def generate_with_openai(project_description):
+    from openai import OpenAI
+
+    api_key = getattr(settings, "OPENAI_API_KEY", None)
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY is not configured.")
+
+    client = OpenAI(api_key=api_key)
+    prompt = build_task_prompt(project_description)
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a helpful software project management assistant that outputs only raw JSON.",
+            },
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.3,
     )
 
-    return clean_suggestions(
-        response.output_text
-    )
+    content = response.choices[0].message.content
+    return clean_suggestions(content)
 
-# Gemini
 
 def generate_with_gemini(project_description):
+    import google.generativeai as genai
 
-    from google import genai
+    api_key = getattr(settings, "GEMINI_API_KEY", None)
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY is not configured.")
 
-    if not settings.GEMINI_API_KEY:
-        raise ValueError(
-            "GEMINI_API_KEY is not configured."
-        )
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("gemini-1.5-flash")
 
-    client = genai.Client(
-        api_key=settings.GEMINI_API_KEY
-    )
+    prompt = build_task_prompt(project_description)
+    response = model.generate_content(prompt)
 
-    prompt = build_task_prompt(
-        project_description
-    )
-
-    response = client.models.generate_content(
-        model="gemini-3.8-flash",
-        contents=prompt,
-    )
-
-    return clean_suggestions(
-        response.text
-    )
+    return clean_suggestions(response.text)
 
 
 def generate_task_suggestions(project_description):
+    provider = getattr(settings, "AI_PROVIDER", "avalai").lower()
 
-    provider = getattr(
-        settings,
-        "AI_PROVIDER",
-        "openai"
-    ).lower()
-
-    if provider == "openai":
-
-        return generate_with_openai(
-            project_description
-        )
-
+    if provider == "avalai":
+        return generate_with_avalai(project_description)
+    elif provider == "openai":
+        return generate_with_openai(project_description)
     elif provider == "gemini":
-
-        return generate_with_gemini(
-            project_description
-        )
-
+        return generate_with_gemini(project_description)
     else:
-
-        raise ValueError(
-            f"Unsupported AI provider: {provider}"
-        )
+        raise ValueError(f"Unsupported AI provider: {provider}")

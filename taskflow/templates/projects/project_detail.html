@@ -333,7 +333,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const errorBox = document.getElementById("ai-error");
     const suggestionsBox = document.getElementById("ai-suggestions");
 
-    // تابع استاندارد دریافت CSRF Token از کوکی
+    let currentSuggestions = [];
+
+    const createTasksUrl = "{% url 'ai-create-tasks' project.id %}";
+
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== "") {
@@ -376,7 +379,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     throw new Error(data.error || "Something went wrong.");
                 }
 
-                displaySuggestions(data.suggestions);
+                currentSuggestions = data.suggestions || [];
+                displaySuggestions(currentSuggestions);
             } catch (error) {
                 errorBox.textContent = error.message;
                 errorBox.style.display = "block";
@@ -390,19 +394,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function displaySuggestions(suggestions) {
         if (!suggestions || !suggestions.length) {
-            suggestionsBox.innerHTML = `<p>No task suggestions were generated.</p>`;
+            suggestionsBox.innerHTML = `<p style="padding: 10px 0; color: #6b7280;">No task suggestions were generated.</p>`;
             return;
         }
 
         let html = `<div class="ai-suggestions-list">`;
         suggestions.forEach(function (task, index) {
             html += `
-                <label class="ai-suggestion-card">
-                    <input type="checkbox" class="ai-task-checkbox" value="${index}" checked>
+                <label class="ai-suggestion-card" style="display: flex; gap: 10px; align-items: flex-start; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px; cursor: pointer;">
+                    <input type="checkbox" class="ai-task-checkbox" data-index="${index}" checked style="margin-top: 4px;">
                     <div class="ai-suggestion-content">
-                        <div class="ai-suggestion-title">${escapeHtml(task.title)}</div>
-                        <div class="ai-suggestion-description">${escapeHtml(task.description || "")}</div>
-                        <span class="ai-priority priority-${task.priority.toLowerCase()}">${escapeHtml(task.priority)}</span>
+                        <div class="ai-suggestion-title" style="font-weight: 600;">${escapeHtml(task.title)}</div>
+                        <div class="ai-suggestion-description" style="font-size: 0.9em; color: #4b5563;">${escapeHtml(task.description || "")}</div>
+                        <span class="ai-priority priority-${task.priority.toLowerCase()}" style="display: inline-block; font-size: 0.75em; padding: 2px 6px; border-radius: 4px; margin-top: 4px;">${escapeHtml(task.priority)}</span>
                     </div>
                 </label>
             `;
@@ -414,6 +418,57 @@ document.addEventListener("DOMContentLoaded", function () {
         `;
 
         suggestionsBox.innerHTML = html;
+
+        const addBtn = document.getElementById("ai-add-selected");
+        if (addBtn) {
+            addBtn.addEventListener("click", handleAddSelectedTasks);
+        }
+    }
+
+    async function handleAddSelectedTasks() {
+        const addBtn = document.getElementById("ai-add-selected");
+        const checkboxes = document.querySelectorAll(".ai-task-checkbox:checked");
+
+        if (checkboxes.length === 0) {
+            alert("Please select at least one task to add.");
+            return;
+        }
+
+        const selectedTasks = [];
+        checkboxes.forEach(cb => {
+            const idx = parseInt(cb.dataset.index, 10);
+            if (!isNaN(idx) && currentSuggestions[idx]) {
+                selectedTasks.push(currentSuggestions[idx]);
+            }
+        });
+
+        addBtn.disabled = true;
+        addBtn.textContent = "Adding Tasks...";
+
+        const csrfToken = getCookie("csrftoken");
+
+        try {
+            const response = await fetch(createTasksUrl, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": csrfToken,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ suggestions: selectedTasks })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || "Failed to create tasks.");
+            }
+
+            window.location.reload();
+        } catch (error) {
+            alert(error.message);
+            addBtn.disabled = false;
+            addBtn.textContent = "Add Selected Tasks";
+        }
     }
 
     function escapeHtml(value) {
@@ -423,4 +478,5 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 });
 </script>
+
 {% endblock %}

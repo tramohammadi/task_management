@@ -164,3 +164,6 @@ AI_PROVIDER = os.getenv("AI_PROVIDER", "openai")
 
 #OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
+
+AI_PROVIDER = os.getenv("AI_PROVIDER", "avalai")
+AVALAI_API_KEY = os.getenv("AVALAI_API_KEY", "")
