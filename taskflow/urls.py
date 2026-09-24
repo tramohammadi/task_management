@@ -45,6 +45,9 @@ urlpatterns = [
     path("notifications/<int:notification_id>/read/", views.mark_notification_as_read, name="notification-mark-read"),
     path("notifications/mark-all-read/", views.mark_all_notifications_as_read, name="notification-mark-all-read"),
 
-    path("reports/", views.performance_report, name="performance-report",),
+    path("reports/", views.performance_report, name="performance-report"),
+
+    path("<int:project_id>/tasks/<int:task_id>/claim/", views.project_task_claim,name="project-task-claim"),
+
 ]
 

@@ -269,6 +269,28 @@ def project_edit(request, project_id):
         request,
         "projects/project_form.html",context)
 
+@login_required
+@require_POST
+def project_task_claim(request, project_id, task_id):
+    project = get_object_or_404(Project, id=project_id)
+    task = get_object_or_404(Task, id=task_id, project=project)
+
+    role = get_project_role(request.user, project)
+    if not role:
+        raise PermissionDenied("You are not a member of this project.")
+
+    if task.assigned_to is not None:
+        messages.warning(
+            request, 
+            f'Task "{task.title}" has already been assigned to {task.assigned_to.username}.'
+        )
+        return redirect("project-detail", project_id=project.id)
+
+    task.assigned_to = request.user
+    task.save(update_fields=["assigned_to", "updated_at"])
+
+    messages.success(request, f'You claimed task "{task.title}". It is now in your tasks!')
+    return redirect("project-detail", project_id=project.id)
 
 @login_required
 def project_delete(request, project_id):

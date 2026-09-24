@@ -64,7 +64,6 @@
             <div class="progress-bar">
                 <div class="progress-bar-fill" style="width: {{ completion_rate }}%;"></div>
             </div>
-            <span class="progress-text">{{ completion_rate }}% Completed</span>
         </div>
     </div>
 
@@ -197,22 +196,28 @@
                                             👤 {{ task.assigned_to.username }}
                                         </span>
                                     {% else %}
-                                        <span class="badge-unassigned">Unassigned</span>
+                                        {% if task.status != 'DONE' %}
+                                            <form method="post" action="{% url 'project-task-claim' project.id task.id %}" style="display:inline;">
+                                                {% csrf_token %}
+                                                <button type="submit" class="badge-unassigned" style="cursor: pointer; border: 1px dashed #6b7280; background: transparent;" title="Click to assign this task to yourself">
+                                                    ✋ Claim Task
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            <span class="badge-unassigned">Unassigned</span>
+                                        {% endif %}
                                     {% endif %}
                                 </div>
 
                                 <div class="task-action-btns">
-                                    {# فقط مدیر/مالک یا خود سازنده تسک دکمه ادیت را می‌بینند #}
+                                    {# فقط مدیر/مالک یا خود سازنده تسک دکمه ادیت و حذف را می‌بینند #}
                                     {% if is_manager or task.created_by == request.user %}
                                         <a href="{% url 'project-task-edit' project.id task.id %}" class="btn-action-icon" title="Edit Task">
                                             ✎
                                         </a>
-                                    {% endif %}
-
-                                    {% if is_manager or task.created_by == request.user %}
                                         <a href="{% url 'project-task-delete' project.id task.id %}"
-                                        class="btn-action-icon btn-action-delete"
-                                        title="Delete Task">✕</a>
+                                           class="btn-action-icon btn-action-delete"
+                                           title="Delete Task">✕</a>
                                     {% endif %}
                                 </div>
 
@@ -236,7 +241,7 @@
         </div>
     </div>
 
-
+    <!-- Project Members Section -->
     <div class="project-tasks-section" style="margin-top: 24px;">
         <div class="tasks-section-header">
             <div>
@@ -328,12 +333,13 @@ document.addEventListener("DOMContentLoaded", function () {
     const errorBox = document.getElementById("ai-error");
     const suggestionsBox = document.getElementById("ai-suggestions");
 
+    // تابع استاندارد دریافت CSRF Token از کوکی
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== "") {
             const cookies = document.cookie.split(";");
-            for (let cookie of cookies) {
-                cookie = cookie.trim();
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
                 if (cookie.startsWith(name + "=")) {
                     cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                     break;
