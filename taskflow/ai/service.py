@@ -168,3 +168,63 @@ def generate_task_suggestions(project_description):
         return generate_with_gemini(project_description)
     else:
         raise ValueError(f"Unsupported AI provider: {provider}")
+
+def build_goal_breakdown_prompt(user_goal):
+    return f"""
+You are an expert agile task manager assistant.
+The user wants to accomplish the following goal or plan:
+"{user_goal}"
+
+Break down this goal into 3 to 6 practical, actionable, and concise tasks.
+Strict rules:
+- Always respond in English, regardless of the input language.
+- Keep task titles short, crisp, and imperative (e.g., "Design Database Schema", max 50 chars).
+- Provide a brief 1-sentence description explaining the task.
+- Set priority strictly to one of: LOW, MEDIUM, HIGH.
+- Return ONLY a valid JSON array of objects. Do not include markdown codeblocks, backticks, or extra text.
+
+Example format:
+[
+  {{"title": "Design Database Schema", "description": "Define models and relationships for users, products, and orders", "priority": "HIGH"}},
+  {{"title": "Implement User Authentication", "description": "Set up registration, login, and session handling", "priority": "HIGH"}}
+]
+"""
+
+def generate_goal_breakdown(user_goal):
+    provider = getattr(settings, "AI_PROVIDER", "avalai").lower()
+    prompt = build_goal_breakdown_prompt(user_goal)
+
+    if provider in ["avalai", "openai"]:
+        from openai import OpenAI
+        if provider == "avalai":
+            api_key = getattr(settings, "AVALAI_API_KEY", None)
+            base_url = "https://api.avalai.ir/v1"
+        else:
+            api_key = getattr(settings, "OPENAI_API_KEY", None)
+            base_url = None
+
+        if not api_key:
+            raise ValueError(f"{provider.upper()}_API_KEY is not configured.")
+
+        client = OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a helpful project task planner that only responds with raw JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.3,
+        )
+        return clean_suggestions(response.choices[0].message.content)
+
+    elif provider == "gemini":
+        import google.generativeai as genai
+        api_key = getattr(settings, "GEMINI_API_KEY", None)
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY is not configured.")
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content(prompt)
+        return clean_suggestions(response.text)
+    else:
+        raise ValueError(f"Unsupported AI provider: {provider}")

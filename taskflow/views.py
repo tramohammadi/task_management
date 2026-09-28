@@ -11,10 +11,11 @@ from django.views.decorators.http import require_POST
 from datetime import timedelta
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from .ai.service import generate_task_suggestions
+from .ai.service import generate_task_suggestions, generate_goal_breakdown
 import json
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
+from django.db import transaction
 
 from django.shortcuts import redirect, render
 from .models import Project, Task, ProjectMembership, Notification
@@ -858,6 +859,70 @@ def ai_create_tasks(request, project_id):
         "created_tasks": created_tasks,
         "count": len(created_tasks),
     })
+
+@login_required
+@require_POST
+def ai_breakdown_goal(request):
+    try:
+        data = json.loads(request.body)
+        goal = data.get("goal", "").strip()
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "Invalid JSON format."}, status=400)
+
+    if not goal:
+        return JsonResponse({"success": False, "error": "Please enter your goal or plan first."}, status=400)
+
+    try:
+        suggestions = generate_goal_breakdown(goal)
+        return JsonResponse({"success": True, "suggestions": suggestions})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+# این تابع تسک‌های انتخابی کاربر را یکجا در دیتابیس ثبت می‌کند
+@login_required
+@require_POST
+def ai_create_bulk_personal_tasks(request):
+    try:
+        data = json.loads(request.body)
+        suggestions = data.get("tasks", [])
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "Invalid JSON."}, status=400)
+
+    if not isinstance(suggestions, list) or not suggestions:
+        return JsonResponse({"success": False, "error": "No tasks provided."}, status=400)
+
+    valid_priorities = {Task.Priority.LOW, Task.Priority.MEDIUM, Task.Priority.HIGH}
+    created_count = 0
+
+    with transaction.atomic():
+        for item in suggestions[:10]:
+            title = str(item.get("title", "")).strip()[:50]
+            description = str(item.get("description", "")).strip()
+            priority = str(item.get("priority", Task.Priority.MEDIUM)).upper().strip()
+
+            if not title:
+                continue
+
+            if priority not in valid_priorities:
+                priority = Task.Priority.MEDIUM
+
+            task = Task(
+                personal_owner=request.user,
+                assigned_to=request.user,
+                created_by=request.user,
+                title=title,
+                description=description,
+                priority=priority,
+                status=Task.Status.TODO,
+                is_ai_suggested=True,
+            )
+            task.full_clean()
+            task.save()
+            created_count += 1
+
+    messages.success(request, f"Successfully created {created_count} AI-generated task(s)!")
+    return JsonResponse({"success": True, "redirect_url": "/tasks/"})
 
 @login_required
 def notification_list(request):

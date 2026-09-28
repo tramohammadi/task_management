@@ -35,9 +35,14 @@ urlpatterns = [
     # Quick Status Update
     path("tasks/<int:task_id>/status/", views.task_update_status, name="task-update-status"),
 
-    path("projects/<int:project_id>/ai/generate/", views.ai_generate_tasks, name="ai-generate-tasks",),
+    # Project AI Tasks
+    path("projects/<int:project_id>/ai/generate/", views.ai_generate_tasks, name="ai-generate-tasks"),
+    path("projects/<int:project_id>/ai/create/", views.ai_create_tasks, name="ai-create-tasks"),
 
-    path("projects/<int:project_id>/ai/create/", views.ai_create_tasks, name="ai-create-tasks",),
+    # --- این دو مسیر را اضافه کنید ---
+    path("tasks/ai/breakdown-goal/", views.ai_breakdown_goal, name="ai-breakdown-goal"),
+    path("tasks/ai/create-bulk/", views.ai_create_bulk_personal_tasks, name="ai-create-bulk-tasks"),
+    # --------------------------------
 
     path("notifications/", views.notification_list, name="notification-list"),
     path("notifications/<int:notification_id>/read/", views.mark_notification_as_read, name="notification-mark-read"),
@@ -45,9 +50,8 @@ urlpatterns = [
 
     path("reports/", views.performance_report, name="performance-report"),
 
-    path("<int:project_id>/tasks/<int:task_id>/claim/", views.project_task_claim,name="project-task-claim"),
+    path("<int:project_id>/tasks/<int:task_id>/claim/", views.project_task_claim, name="project-task-claim"),
 
     path("profile/", views.profile_view, name="profile"),
     path("profile/password/", views.change_password_view, name="password-change"),
 ]
-

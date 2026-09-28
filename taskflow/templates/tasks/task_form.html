@@ -4,7 +4,7 @@
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/projects.css' %}">
     <link rel="stylesheet" href="{% static 'css/tasks.css' %}">
-        <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
 {% endblock %}
 
 {% block title %}{{ page_title }} | TaskFlow{% endblock %}
@@ -26,12 +26,46 @@
         </div>
     </div>
 
-    <section class="form-card">
-        <form method="post" novalidate>
+    {% if not is_edit %}
+    <div class="ai-assistant-card">
+        <div class="ai-card-header">
+            <h4>AI Task Breakdown</h4>
+            <span class="ai-badge">Smart Assistant</span>
+        </div>
+        <p class="ai-hint-text">Type your high-level goal or feature idea, and let AI generate actionable tasks for you.</p>
+        
+        <div class="ai-box-flex">
+            <input type="text" id="aiGoalInput" placeholder="e.g., Build an e-commerce website with payment and cart" />
+            <button type="button" id="aiGenerateBtn" class="ai-action-btn" onclick="generateSubtasks()">
+                Break Down Goal
+            </button>
+        </div>
+
+        <div id="aiLoadingIndicator" class="ai-status-text">
+            <span>Generating actionable tasks, please wait...</span>
+        </div>
+
+        <div id="aiSuggestionsContainer" style="display: none; margin-top: 20px;">
+            <p style="font-weight: 700; font-size: 13px; color: var(--text-primary); margin-bottom: 10px;">
+                Suggested Tasks (Select tasks to create directly or pick one into form):
+            </p>
+            <div id="aiTasksList" class="ai-suggestions-list"></div>
+            
+            <div style="margin-top: 16px; display: flex; gap: 10px;">
+                <button type="button" class="primary-button" style="width: auto; padding: 10px 18px;" onclick="saveSelectedAITasks()">
+                    Create Selected Tasks
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <section class="auth-card" style="padding: 32px;">
+        <form method="post" novalidate class="auth-form">
             {% csrf_token %}
 
             {% if form.non_field_errors %}
-                <div class="form-general-error" style="color: #ef4444; margin-bottom: 15px; font-weight: 500;">
+                <div class="form-error">
                     {{ form.non_field_errors }}
                 </div>
             {% endif %}
@@ -43,7 +77,7 @@
             </div>
 
             <div class="form-group">
-                <label for="{{ form.description.id_for_label }}">Description <span class="optional-label">(optional)</span></label>
+                <label for="{{ form.description.id_for_label }}">Description <span class="field-hint">(optional)</span></label>
                 {{ form.description }}
                 {% for error in form.description.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
             </div>
@@ -71,22 +105,156 @@
             </div>
 
             <div class="form-group">
-                <label for="{{ form.deadline.id_for_label }}">Deadline <span class="optional-label">(optional)</span></label>
+                <label for="{{ form.deadline.id_for_label }}">Deadline <span class="field-hint">(optional)</span></label>
                 {{ form.deadline }}
                 {% for error in form.deadline.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
             </div>
 
-            <div class="form-actions">
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
                 {% if is_personal %}
-                    <a href="{% url 'task-list' %}" class="btn-cancel">Cancel</a>
+                    <a href="{% url 'task-list' %}" style="align-self: center;" class="forgot-link">Cancel</a>
                 {% elif project %}
-                    <a href="{% url 'project-detail' project.id %}" class="btn-cancel">Cancel</a>
+                    <a href="{% url 'project-detail' project.id %}" style="align-self: center;" class="forgot-link">Cancel</a>
                 {% else %}
-                    <a href="{% url 'dashboard' %}" class="btn-cancel">Cancel</a>
+                    <a href="{% url 'dashboard' %}" style="align-self: center;" class="forgot-link">Cancel</a>
                 {% endif %}
-                <button type="submit" class="primary-button">{{ submit_label }}</button>
+                <button type="submit" class="primary-button" style="width: auto; padding: 12px 24px;">{{ submit_label }}</button>
             </div>
         </form>
     </section>
 </div>
+
+<script>
+let currentSuggestions = [];
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function generateSubtasks() {
+    const goalInput = document.getElementById("aiGoalInput");
+    const goal = goalInput.value.trim();
+    if (!goal) {
+        alert("Please enter a goal or task idea first.");
+        return;
+    }
+
+    const btn = document.getElementById("aiGenerateBtn");
+    const loading = document.getElementById("aiLoadingIndicator");
+    const container = document.getElementById("aiSuggestionsContainer");
+
+    btn.disabled = true;
+    loading.style.display = "block";
+    container.style.display = "none";
+
+    fetch("{% url 'ai-breakdown-goal' %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken")
+        },
+        body: JSON.stringify({ goal: goal })
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        loading.style.display = "none";
+
+        if (data.success && data.suggestions.length > 0) {
+            currentSuggestions = data.suggestions;
+            renderSuggestions(data.suggestions);
+            container.style.display = "block";
+        } else {
+            alert(data.error || "Failed to generate tasks.");
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        loading.style.display = "none";
+        alert("An error occurred: " + err);
+    });
+}
+
+function renderSuggestions(tasks) {
+    const list = document.getElementById("aiTasksList");
+    list.innerHTML = "";
+
+    tasks.forEach((task, index) => {
+        const item = document.createElement("div");
+        item.className = "ai-task-item";
+        item.innerHTML = `
+            <input type="checkbox" id="task_chk_${index}" value="${index}" checked />
+            <div class="ai-task-item-content">
+                <div class="ai-task-title-row">
+                    <label for="task_chk_${index}">${task.title}</label>
+                    <span class="ai-priority-badge priority-${task.priority}">${task.priority}</span>
+                </div>
+                <div class="ai-task-desc">${task.description}</div>
+            </div>
+            <button type="button" class="btn-use-form" title="Load into form below" onclick="fillFormWithTask(${index})">
+                Use in Form ↓
+            </button>
+        `;
+        list.appendChild(item);
+    });
+}
+
+function fillFormWithTask(index) {
+    const task = currentSuggestions[index];
+    if (!task) return;
+    
+    const titleField = document.getElementById("{{ form.title.id_for_label }}");
+    const descField = document.getElementById("{{ form.description.id_for_label }}");
+    const priorityField = document.getElementById("{{ form.priority.id_for_label }}");
+
+    if (titleField) titleField.value = task.title;
+    if (descField) descField.value = task.description;
+    if (priorityField) priorityField.value = task.priority;
+    
+    titleField.scrollIntoView({ behavior: 'smooth' });
+}
+
+function saveSelectedAITasks() {
+    const checkedBoxes = document.querySelectorAll("#aiTasksList input[type='checkbox']:checked");
+    if (checkedBoxes.length === 0) {
+        alert("Please select at least one task.");
+        return;
+    }
+
+    const selectedTasks = [];
+    checkedBoxes.forEach(chk => {
+        const idx = parseInt(chk.value);
+        selectedTasks.push(currentSuggestions[idx]);
+    });
+
+    fetch("{% url 'ai-create-bulk-tasks' %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken")
+        },
+        body: JSON.stringify({ tasks: selectedTasks })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = data.redirect_url;
+        } else {
+            alert(data.error || "Failed to create tasks.");
+        }
+    })
+    .catch(err => alert("Error: " + err));
+}
+</script>
 {% endblock %}
