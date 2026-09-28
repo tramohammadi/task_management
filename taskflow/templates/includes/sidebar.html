@@ -26,7 +26,7 @@
         </a>
 
         <a href="{% url 'notification-list' %}" 
-        class="nav-item {% if request.resolver_match.url_name == 'notification-list' %}active{% endif %}">
+           class="nav-item {% if request.resolver_match.url_name == 'notification-list' %}active{% endif %}">
             <span class="nav-icon">◌</span>
             Notifications
             {% if unread_notifications_count > 0 %}
@@ -35,7 +35,7 @@
         </a>
 
         <a href="{% url 'performance-report' %}"
-        class="nav-item {% if request.resolver_match.url_name == 'performance-report' %}active{% endif %}">
+           class="nav-item {% if request.resolver_match.url_name == 'performance-report' %}active{% endif %}">
             <span class="nav-icon">▤</span>
             Performance Reports
         </a>
@@ -44,7 +44,10 @@
 
     <div class="sidebar-bottom">
 
-        <div class="user-mini-profile">
+        <a href="{% url 'profile' %}" 
+           class="user-mini-profile {% if request.resolver_match.url_name == 'profile' %}active{% endif %}"
+           style="text-decoration: none; color: inherit; cursor: pointer;"
+           title="View & Edit Profile">
             <div class="user-avatar">
                 {{ request.user.username|first|upper }}
             </div>
@@ -53,7 +56,7 @@
                 <strong>{{ request.user.username }}</strong>
                 <span>{{ request.user.email }}</span>
             </div>
-        </div>
+        </a>
 
         <form method="post" action="{% url 'logout' %}">
             {% csrf_token %}

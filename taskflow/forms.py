@@ -241,3 +241,22 @@ class PersonalTaskForm(forms.ModelForm):
         if user and not self.instance.pk:
             self.instance.personal_owner = user
             self.instance.assigned_to = user
+
+class UserProfileUpdateForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ["username", "first_name", "last_name"]
+        widgets = {
+            "username": forms.TextInput(attrs={"class": "form-control", "placeholder": "Username"}),
+            "first_name": forms.TextInput(attrs={"class": "form-control", "placeholder": "First name"}),
+            "last_name": forms.TextInput(attrs={"class": "form-control", "placeholder": "Last name"}),
+        }
+
+    def clean_username(self):
+        username = self.cleaned_data.get("username", "").strip()
+        if len(username) < 3:
+            raise forms.ValidationError("Username must be at least 3 characters long.")
+        existing = User.objects.filter(username=username).exclude(pk=self.instance.pk).exists()
+        if existing:
+            raise forms.ValidationError("This username is already taken.")
+        return username

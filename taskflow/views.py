@@ -13,9 +13,12 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from .ai.service import generate_task_suggestions
 import json
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
 
+from django.shortcuts import redirect, render
 from .models import Project, Task, ProjectMembership, Notification
-from .forms import RegisterForm, ProjectForm, AddMemberForm, UpdateMemberRoleForm, ProjectTaskForm,PersonalTaskForm
+from .forms import RegisterForm, ProjectForm, AddMemberForm, UpdateMemberRoleForm, ProjectTaskForm,PersonalTaskForm, UserProfileUpdateForm
 
 
 class CustomLoginView(auth_views.LoginView):
@@ -379,14 +382,30 @@ def project_update_member_role(request, project_id, membership_id):
         messages.error(request, "Owner role cannot be changed.")
         return redirect("project-detail", project_id=project.id)
 
+    old_role = membership.role
+    old_role_display = membership.get_role_display()
+
     form = UpdateMemberRoleForm(request.POST, instance=membership)
     if form.is_valid():
-        form.save()
-        messages.success(request, f"Role for {membership.user.username} updated.")
+        membership = form.save()
+        new_role = membership.role
+        new_role_display = membership.get_role_display()
+
+        if old_role != new_role and membership.user != request.user:
+            Notification.objects.create(
+                user=membership.user,
+                message=(
+                    f"Your role in project '{project.title}' was changed "
+                    f"from {old_role_display} to {new_role_display}."
+                ),
+            )
+
+        messages.success(request, f"Role for {membership.user.username} updated to {new_role_display}.")
     else:
         messages.error(request, "Invalid role selected.")
 
     return redirect("project-detail", project_id=project.id)
+
 
 
 def get_project_role(user, project):
@@ -1169,13 +1188,48 @@ def performance_report(request):
     context = {
         "personal_metrics": personal_metrics,
         "project_reports": project_reports,
-
         "report_period": report_period,
         "report_period_label": report_period_label,
     }
 
-    return render(
-        request,
-        "reports/performance_report.html",
-        context,
-    )
+    return render(request,"reports/performance_report.html",context,)
+
+@login_required
+def profile_view(request):
+    user = request.user
+
+    if request.method == "POST" and "update_profile" in request.POST:
+        profile_form = UserProfileUpdateForm(request.POST, instance=user)
+        if profile_form.is_valid():
+            profile_form.save()
+            messages.success(request, "Your profile has been updated successfully.")
+            return redirect("profile")
+    else:
+        profile_form = UserProfileUpdateForm(instance=user)
+
+    password_form = PasswordChangeForm(user=user)
+    if "old_password" in password_form.fields:
+        password_form.fields["old_password"].widget.attrs.pop("autofocus", None)
+
+    return render(request, "profile.html",{"profile_form": profile_form,"password_form": password_form,},)
+
+
+@login_required
+def change_password_view(request):
+    if request.method == "POST":
+        form = PasswordChangeForm(user=request.user, data=request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)
+            messages.success(request, "Your password was successfully updated!")
+            return redirect("profile")
+        else:
+            return render(
+                request,"profile.html",{
+                    "profile_form": UserProfileUpdateForm(instance=request.user),
+                    "password_form": form,
+                    "password_error": True,
+                },
+            )
+
+    return redirect("profile")

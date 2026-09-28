@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}Profile Settings - TaskFlow{% endblock %}
+
+{% block content %}
+<div class="profile-page-wrapper">
+    <div class="profile-layout">
+        
+        <!-- ستون چپ: کارت اطلاعات حساب کاربری -->
+        <aside class="profile-summary-card">
+            <div class="profile-avatar">
+                {{ request.user.username|first|upper }}
+            </div>
+
+            <h2 class="profile-username">{{ request.user.username }}</h2>
+            <span class="profile-email-badge">{{ request.user.email }}</span>
+
+            <div class="profile-meta-list">
+                <div class="meta-item">
+                    <span class="meta-label">Date Joined</span>
+                    <span class="meta-value">{{ request.user.date_joined|date:"F j, Y" }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Auth Method</span>
+                    <span class="meta-value">Email Login</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Account Status</span>
+                    <span class="meta-value status-active">Active</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ستون راست: فرم‌های ویرایش اطلاعات و تغییر پسورد -->
+        <div class="profile-forms-column">
+
+            <!-- فرم ویرایش مشخصات فردی -->
+            <div class="settings-card">
+                <div class="card-heading">
+                    <h3>Account Information</h3>
+                    <p>Update your public display username and profile details</p>
+                </div>
+
+                <form method="post" action="{% url 'profile' %}" class="auth-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="update_profile" value="1">
+
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="text" value="{{ request.user.email }}" disabled class="input-disabled">
+                        <span class="field-hint">Email is your unique identifier and cannot be edited.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ profile_form.username.id_for_label }}">Username</label>
+                        {{ profile_form.username }}
+                        {% if profile_form.username.errors %}
+                            <span class="field-error">{{ profile_form.username.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-row-2">
+                        <div class="form-group">
+                            <label for="{{ profile_form.first_name.id_for_label }}">First Name</label>
+                            {{ profile_form.first_name }}
+                        </div>
+                        <div class="form-group">
+                            <label for="{{ profile_form.last_name.id_for_label }}">Last Name</label>
+                            {{ profile_form.last_name }}
+                        </div>
+                    </div>
+
+                    <button type="submit" class="primary-button">
+                        Save Profile Changes
+                    </button>
+                </form>
+            </div>
+
+            <!-- فرم تغییر رمز عبور -->
+            <div class="settings-card">
+                <div class="card-heading">
+                    <h3>Change Password</h3>
+                    <p>Ensure your account remains safe with a strong password</p>
+                </div>
+
+                <form method="post" action="{% url 'password-change' %}" class="auth-form">
+                    {% csrf_token %}
+
+                    <div class="form-group">
+                        <label for="{{ password_form.old_password.id_for_label }}">Current Password</label>
+                        {{ password_form.old_password }}
+                        {% if password_form.old_password.errors %}
+                            <span class="field-error">{{ password_form.old_password.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ password_form.new_password1.id_for_label }}">New Password</label>
+                        {{ password_form.new_password1 }}
+                        {% if password_form.new_password1.errors %}
+                            <span class="field-error">{{ password_form.new_password1.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ password_form.new_password2.id_for_label }}">Confirm New Password</label>
+                        {{ password_form.new_password2 }}
+                        {% if password_form.new_password2.errors %}
+                            <span class="field-error">{{ password_form.new_password2.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+
+                    <button type="submit" class="primary-button">
+                        Update Password
+                    </button>
+                </form>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<style>
+.profile-page-wrapper {
+    max-width: 1060px;
+    margin: 10px auto;
+    padding: 0 16px 40px;
+}
+
+.profile-layout {
+    display: grid;
+    grid-template-columns: 310px 1fr;
+    gap: 32px;
+    align-items: start;
+}
+
+.profile-summary-card,
+.settings-card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 32px 28px;
+    box-shadow: var(--shadow);
+}
+
+.profile-summary-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.profile-avatar {
+    width: 84px;
+    height: 84px;
+    border-radius: 24px;
+    background-color: var(--soft-green);
+    color: var(--primary-dark);
+    font-size: 34px;
+    font-weight: 800;
+    display: grid;
+    place-items: center;
+    margin-bottom: 18px;
+    box-shadow: 0 8px 18px rgba(118, 169, 155, 0.18);
+}
+
+.profile-username {
+    margin: 0 0 6px;
+    font-size: 22px;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+}
+
+.profile-email-badge {
+    color: var(--text-secondary);
+    font-size: 13px;
+    word-break: break-all;
+    margin-bottom: 24px;
+}
+
+.profile-meta-list {
+    width: 100%;
+    border-top: 1px solid var(--border);
+    padding-top: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+}
+
+.meta-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+}
+
+.meta-label {
+    color: var(--text-secondary);
+}
+
+.meta-value {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.status-active {
+    color: var(--primary-dark);
+    background-color: var(--soft-green);
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 11px;
+}
+
+.profile-forms-column {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.card-heading {
+    margin-bottom: 24px;
+}
+
+.card-heading h3 {
+    margin: 0 0 6px;
+    font-size: 20px;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+}
+
+.card-heading p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.form-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.input-disabled {
+    background-color: #f1f4f3 !important;
+    color: var(--text-secondary) !important;
+    cursor: not-allowed;
+    border-color: var(--border);
+}
+
+@media (max-width: 860px) {
+    .profile-layout {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .form-row-2 {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // جلوگیری از فوکوس خودکار روی اینپوت‌های پسورد هنگام لود صفحه
+    const passwordInputs = document.querySelectorAll('input[type="password"]');
+    passwordInputs.forEach(input => {
+        input.removeAttribute('autofocus');
+    });
+
+    // اگر فرم پروفایل خطا داشت، اسکرول کن به بالای صفحه (روی فرم پروفایل)
+    {% if profile_form.errors %}
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    {% endif %}
+});
+</script>
+
+{% endblock %}

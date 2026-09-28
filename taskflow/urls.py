@@ -2,8 +2,6 @@ from django.contrib.auth import views as auth_views
 from django.urls import path
 from . import views
 
-# urls.py
-
 urlpatterns = [
     path("", views.CustomLoginView.as_view(), name="home"),
     path("login/", views.CustomLoginView.as_view(), name="login"),
@@ -49,5 +47,7 @@ urlpatterns = [
 
     path("<int:project_id>/tasks/<int:task_id>/claim/", views.project_task_claim,name="project-task-claim"),
 
+    path("profile/", views.profile_view, name="profile"),
+    path("profile/password/", views.change_password_view, name="password-change"),
 ]
 
