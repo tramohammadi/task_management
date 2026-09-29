@@ -8,6 +8,8 @@
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/reports.css' %}">
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'css/tasks.css' %}">
+
 {% endblock %}
 
 {% block content %}
@@ -54,7 +56,6 @@
 
         </header>
 
-        <!-- Personal performance -->
         <section class="report-section">
             <div class="section-heading">
                 <div>
@@ -124,7 +125,6 @@
             </div>
         </section>
 
-        <!-- Owner project reports -->
         <section class="report-section">
             <div class="section-heading">
                 <div>
@@ -147,11 +147,22 @@
                                 {% endif %}
                             </div>
 
-                            <a
-                                class="report-project-link"
-                                href="{% url 'project-detail' report.project.id %}">
-                                View Project
-                            </a>
+                            <div class="project-header-actions">
+                                <button
+                                    type="button"
+                                    class="btn-ai-summary"
+                                    id="btn-summary-{{ report.project.id }}"
+                                    onclick="toggleProjectSummary({{ report.project.id }})"
+                                >
+                                    <span>✨</span> Executive Summary
+                                </button>
+
+                                <a
+                                    class="report-project-link"
+                                    href="{% url 'project-detail' report.project.id %}">
+                                    View Project
+                                </a>
+                            </div>
                         </div>
 
                         <div class="project-progress-row">
@@ -203,6 +214,27 @@
                                 <strong>{{ report.metrics.on_time_rate }}%</strong>
                             </article>
 
+                        </div>
+
+                        <div
+                            id="summary-panel-{{ report.project.id }}"
+                            class="ai-summary-card"
+                            style="display: none;"
+                            data-fetched="false"
+                        >
+                            <div class="ai-summary-header">
+                                <h4><span>⚡</span> AI Health Assessment & Risks</h4>
+                                <span class="ai-badge">Live Analytics</span>
+                            </div>
+
+                            <div id="summary-loading-{{ report.project.id }}" class="ai-loading-box" style="display: none;">
+                                <div class="spinner"></div>
+                                <span>Analyzing project metrics, bottlenecks, and timeline health...</span>
+                            </div>
+
+                            <div id="summary-error-{{ report.project.id }}" class="ai-error-box" style="display: none;"></div>
+
+                            <div id="summary-content-{{ report.project.id }}" class="ai-summary-body" style="display: none;"></div>
                         </div>
 
                         <div class="member-performance">
@@ -288,4 +320,93 @@
 
     </main>
 </div>
+
+<script>
+    function getCsrfToken() {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.startsWith('csrftoken=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(10));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function toggleProjectSummary(projectId) {
+        const panel = document.getElementById(`summary-panel-${projectId}`);
+        const loading = document.getElementById(`summary-loading-${projectId}`);
+        const content = document.getElementById(`summary-content-${projectId}`);
+        const errorBox = document.getElementById(`summary-error-${projectId}`);
+        const btn = document.getElementById(`btn-summary-${projectId}`);
+
+        if (panel.style.display === 'block') {
+            panel.style.display = 'none';
+            return;
+        }
+
+        panel.style.display = 'block';
+
+        if (panel.getAttribute('data-fetched') === 'true') {
+            return;
+        }
+
+        loading.style.display = 'flex';
+        content.style.display = 'none';
+        errorBox.style.display = 'none';
+        btn.disabled = true;
+
+        fetch(`/projects/${projectId}/ai-summary/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Server returned HTTP ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            btn.disabled = false;
+            loading.style.display = 'none';
+
+            if (data.success) {
+                content.innerHTML = renderMarkdown(data.summary);
+                content.style.display = 'block';
+                panel.setAttribute('data-fetched', 'true');
+            } else {
+                errorBox.textContent = data.error || 'Failed to generate summary. Please try again.';
+                errorBox.style.display = 'block';
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            loading.style.display = 'none';
+            errorBox.textContent = 'Connection error: ' + err.message;
+            errorBox.style.display = 'block';
+        });
+    }
+
+    function renderMarkdown(md) {
+        if (!md) return '';
+        let html = md
+            .replace(/^### (.*$)/gim, '<h5>$1</h5>')
+            .replace(/^## (.*$)/gim, '<h4>$1</h4>')
+            .replace(/^# (.*$)/gim, '<h3>$1</h3>')
+            .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+            .replace(/^\s*[\-\*]\s+(.*$)/gim, '<li>$1</li>');
+
+        html = html.replace(/(<li>.*<\/li>)/gims, '<ul>$1</ul>');
+        html = html.replace(/\n\n/gim, '<br><br>');
+        return html;
+    }
+</script>
 {% endblock %}

@@ -11,7 +11,7 @@ from django.views.decorators.http import require_POST
 from datetime import timedelta
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from .ai.service import generate_task_suggestions, generate_goal_breakdown
+from .ai.service import generate_task_suggestions, generate_goal_breakdown, generate_project_summary
 import json
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
@@ -1298,3 +1298,61 @@ def change_password_view(request):
             )
 
     return redirect("profile")
+
+
+@login_required
+def project_ai_summary(request, project_id):
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Invalid request method."}, status=405)
+
+    project = get_object_or_404(Project, id=project_id)
+
+    is_owner = hasattr(project, 'owner') and project.owner == request.user
+    is_member = hasattr(project, 'members') and project.members.filter(id=request.user.id).exists()
+    if not (is_owner or is_member):
+        return JsonResponse({"success": False, "error": "Access denied."}, status=403)
+
+    now = timezone.now()
+    tasks = project.tasks.all() if hasattr(project, 'tasks') else Task.objects.filter(project=project)
+
+    total_tasks = tasks.count()
+    if total_tasks == 0:
+        return JsonResponse({
+            "success": False, 
+            "error": "This project has no tasks yet. Add a few tasks to generate a summary."
+        })
+
+    done_count = tasks.filter(status='DONE').count()
+    doing_count = tasks.filter(status='DOING').count()
+    todo_count = tasks.filter(status='TODO').count()
+
+    overdue_qs = tasks.filter(deadline__lt=now).exclude(status='DONE')
+    overdue_list = [f"{t.title} (due: {t.deadline.strftime('%b %d')})" for t in overdue_qs[:4]]
+
+    high_pri_qs = tasks.filter(priority='HIGH').exclude(status='DONE')
+    high_pri_list = [t.title for t in high_pri_qs[:4]]
+
+    active_qs = tasks.filter(status='DOING')
+    active_list = [
+        f"{t.title} ({t.assigned_to.username if t.assigned_to else 'unassigned'})" 
+        for t in active_qs[:4]
+    ]
+
+    context_data = {
+        "title": project.title,
+        "description": getattr(project, 'description', '') or 'No description provided.',
+        "total_tasks": total_tasks,
+        "done_count": done_count,
+        "doing_count": doing_count,
+        "todo_count": todo_count,
+        "overdue_count": overdue_qs.count(),
+        "overdue_list": ", ".join(overdue_list) if overdue_list else "None",
+        "high_priority_list": ", ".join(high_pri_list) if high_pri_list else "None",
+        "active_tasks": ", ".join(active_list) if active_list else "None",
+    }
+
+    try:
+        summary_markdown = generate_project_summary(context_data)
+        return JsonResponse({"success": True, "summary": summary_markdown})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
