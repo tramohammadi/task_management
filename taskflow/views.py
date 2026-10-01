@@ -361,13 +361,24 @@ def project_remove_member(request, project_id, membership_id):
     if not is_owner and membership.role == ProjectMembership.Role.MANAGER and membership.user != request.user:
         raise PermissionDenied("Only the project owner can remove managers.")
 
+    target_user = membership.user
     membership.delete()
-    messages.success(request, "Member was removed successfully.")
 
-    if membership.user == request.user:
+    if target_user == request.user:
+        if project.owner != request.user:
+            Notification.objects.create(
+                user=project.owner,
+                message=f"{request.user.username} left your project '{project.title}'."
+            )
+        messages.success(request, f"You have left '{project.title}'.")
         return redirect("project-list")
-
-    return redirect("project-detail", project_id=project.id)
+    else:
+        Notification.objects.create(
+            user=target_user,
+            message=f"You have been removed from project '{project.title}'."
+        )
+        messages.success(request, f"{target_user.username} was removed successfully.")
+        return redirect("project-detail", project_id=project.id)
 
 
 @login_required
